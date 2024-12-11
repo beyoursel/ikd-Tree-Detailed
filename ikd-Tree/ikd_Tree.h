@@ -110,7 +110,7 @@ public:
             MANUAL_HEAP(int max_capacity = 100){
                 cap = max_capacity;
                 heap = new PointType_CMP[max_capacity];
-                heap_size = 0;
+                heap_size = 0; // ？
             }
 
             ~MANUAL_HEAP(){ delete[] heap;}
@@ -140,15 +140,16 @@ public:
             int heap_size = 0;
             int cap = 0;        
             PointType_CMP * heap;
+            // 向下遍历，直至当前节点的值大于或等于其子节点的值
             void MoveDown(int heap_index){
-                int l = heap_index * 2 + 1;
-                PointType_CMP tmp = heap[heap_index];
-                while (l < heap_size){
-                    if (l + 1 < heap_size && heap[l] < heap[l+1]) l++;
-                    if (tmp < heap[l]){
+                int l = heap_index * 2 + 1; // heap_index为元素再数组表示的堆中索引，l为左子节点索引
+                PointType_CMP tmp = heap[heap_index]; // 保存当前节点的值
+                while (l < heap_size){ // 表示当前节点的左子节点存在
+                    if (l + 1 < heap_size && heap[l] < heap[l+1]) l++; // 右子节点也存在，且左子节点小于右子节点
+                    if (tmp < heap[l]){ // 如果父节点小于左子节点
                         heap[heap_index] = heap[l];
                         heap_index = l;
-                        l = heap_index * 2 + 1;
+                        l = heap_index * 2 + 1; // 直到当前节点的值大于或等于其子节点的值
                     } else break;
                 }
                 heap[heap_index] = tmp;
@@ -247,5 +248,4 @@ public:
     KD_TREE_NODE * Root_Node = nullptr;
     int max_queue_size = 0;
 };
-
 
