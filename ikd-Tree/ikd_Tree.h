@@ -37,7 +37,7 @@ struct BoxPointType{
 enum operation_set {ADD_POINT, DELETE_POINT, DELETE_BOX, ADD_BOX, DOWNSAMPLE_DELETE, PUSH_DOWN};
 
 enum delete_point_storage_set {NOT_RECORD, DELETE_POINTS_REC, MULTI_THREAD_REC};
-
+// 自定义队列
 template <typename T>
 class MANUAL_Q{
     private:
@@ -155,7 +155,7 @@ public:
                 heap[heap_index] = tmp;
                 return;
             }
-            
+            // 上浮操作
             void FloatUp(int heap_index){
                 int ancestor = (heap_index-1)/2;
                 PointType_CMP tmp = heap[heap_index];
@@ -181,8 +181,8 @@ private:
     pthread_mutex_t rebuild_logger_mutex_lock, points_deleted_rebuild_mutex_lock;
     // queue<Operation_Logger_Type> Rebuild_Logger;
     MANUAL_Q<Operation_Logger_Type> Rebuild_Logger;    
-    PointVector Rebuild_PCL_Storage;
-    KD_TREE_NODE ** Rebuild_Ptr = nullptr;
+    PointVector Rebuild_PCL_Storage; // 保存PointType的数组
+    KD_TREE_NODE ** Rebuild_Ptr = nullptr; // 二叉树
     int search_mutex_counter = 0;
     static void * multi_thread_ptr(void *arg);
     void multi_thread_rebuild();
