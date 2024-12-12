@@ -117,7 +117,7 @@ public:
 
             void pop(){
                 if (heap_size == 0) return;
-                heap[0] = heap[heap_size-1];
+                heap[0] = heap[heap_size-1]; 
                 heap_size--;
                 MoveDown(0);
                 return;
@@ -140,7 +140,7 @@ public:
             int heap_size = 0;
             int cap = 0;        
             PointType_CMP * heap;
-            // 向下遍历，直至当前节点的值大于或等于其子节点的值
+            // 向下遍历，直至当前节点的值大于或等于其子节点的值 最大堆
             void MoveDown(int heap_index){
                 int l = heap_index * 2 + 1; // heap_index为元素再数组表示的堆中索引，l为左子节点索引
                 PointType_CMP tmp = heap[heap_index]; // 保存当前节点的值
@@ -155,7 +155,7 @@ public:
                 heap[heap_index] = tmp;
                 return;
             }
-            // 上浮操作
+            // 上浮操作，使得当前节点满足最大堆的性质
             void FloatUp(int heap_index){
                 int ancestor = (heap_index-1)/2;
                 PointType_CMP tmp = heap[heap_index];
