@@ -64,11 +64,11 @@ public:
     struct KD_TREE_NODE{
         PointType point;
         uint8_t division_axis;  
-        int TreeSize = 1;
+        int TreeSize = 1; // 以当前节点为根节点的subtree中所有节点的个数
         int invalid_point_num = 0;
         int down_del_num = 0;
         bool point_deleted = false;
-        bool tree_deleted = false; 
+        bool tree_deleted = false;  // 整棵子树是否标记为删除
         bool point_downsample_deleted = false;
         bool tree_downsample_deleted = false;
         bool need_push_down_to_left = false;
@@ -76,7 +76,7 @@ public:
         bool working_flag = false;
         float radius_sq;
         pthread_mutex_t push_down_mutex_lock;
-        float node_range_x[2], node_range_y[2], node_range_z[2];   
+        float node_range_x[2], node_range_y[2], node_range_z[2]; // 以当前节点为根节点的subtree中所有节点，在三维空间中的最小bbox，对应的max_point、min_point  // 剪枝加速都依赖该变量 
         KD_TREE_NODE *left_son_ptr = nullptr;
         KD_TREE_NODE *right_son_ptr = nullptr;
         KD_TREE_NODE *father_ptr = nullptr;
