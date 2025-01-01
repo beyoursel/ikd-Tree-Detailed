@@ -196,7 +196,7 @@ private:
     float balance_criterion_param = 0.7f;
     float downsample_size = 0.2f;
     bool Delete_Storage_Disabled = false;
-    KD_TREE_NODE * STATIC_ROOT_NODE = nullptr;
+    KD_TREE_NODE * STATIC_ROOT_NODE = nullptr; // 初始建树时的根节点
     PointVector Points_deleted;
     PointVector Downsample_Storage;
     PointVector Multithread_Points_deleted;
@@ -224,20 +224,20 @@ private:
     static bool point_cmp_z(PointType a, PointType b); 
 
 public:
-    KD_TREE(float delete_param = 0.5, float balance_param = 0.6 , float box_length = 0.2); // 构建kdtree
+    KD_TREE(float delete_param = 0.5, float balance_param = 0.6 , float box_length = 0.2); // 初始化kdtree，将启动multi_rebuild线程
     ~KD_TREE();
     void Set_delete_criterion_param(float delete_param); // 设置alpha_del
     void Set_balance_criterion_param(float balance_param); // 设置alpha_bal
     void set_downsample_param(float box_length); // 设置下采样的分辨率
-    void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7, float box_length = 0.2); 
+    void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7, float box_length = 0.2); // 执行上面三个函数
     int size(); // 返回kdtree的尺寸
     int validnum(); // 返回tree中有效点个数
-    void root_alpha(float &alpha_bal, float &alpha_del);
-    void Build(PointVector point_cloud);
-    void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY);
-    void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage);
-    void Radius_Search(PointType point, const float radius, PointVector &Storage);
-    int Add_Points(PointVector & PointToAdd, bool downsample_on);
+    void root_alpha(float &alpha_bal, float &alpha_del); // 获取alpha_bal和alpha_del
+    void Build(PointVector point_cloud); // 构建kdtree，初始建树
+    void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY); // 最近邻搜索，内部时行search()接口
+    void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage); // 基于BOX搜索，给定BOX的最近最远点； 内部执行search_by_range()接口
+    void Radius_Search(PointType point, const float radius, PointVector &Storage); // 即与半径搜索节点; 内部执行Search_by_radius
+    int Add_Points(PointVector & PointToAdd, bool downsample_on); // 增量式增加点云
     void Add_Point_Boxes(vector<BoxPointType> & BoxPoints);
     void Delete_Points(PointVector & PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> & BoxPoints);
