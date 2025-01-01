@@ -49,7 +49,7 @@ void KD_TREE<PointType>::InitializeKDTree(float delete_param, float balance_para
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE * root){
+void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE * root){// 初始化节点的相关属性
     root->point.x = 0.0f;
     root->point.y = 0.0f;
     root->point.z = 0.0f;       
@@ -165,14 +165,14 @@ void KD_TREE<PointType>::root_alpha(float &alpha_bal, float &alpha_del){
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::start_thread(){
+void KD_TREE<PointType>::start_thread(){ // 初始化互斥锁，创建线程
     pthread_mutex_init(&termination_flag_mutex_lock, NULL);   
     pthread_mutex_init(&rebuild_ptr_mutex_lock, NULL);     
     pthread_mutex_init(&rebuild_logger_mutex_lock, NULL);
     pthread_mutex_init(&points_deleted_rebuild_mutex_lock, NULL); 
     pthread_mutex_init(&working_flag_mutex, NULL);
     pthread_mutex_init(&search_flag_mutex, NULL);
-    pthread_create(&rebuild_thread, NULL, multi_thread_ptr, (void*) this);
+    pthread_create(&rebuild_thread, NULL, multi_thread_ptr, (void*) this); // multi_thread_ptr为线程入口函数，即线程需要执行的代码逻辑
     printf("Multi thread started \n");    
 }
 
@@ -202,7 +202,7 @@ void KD_TREE<PointType>::multi_thread_rebuild(){
     bool terminated = false;
     KD_TREE_NODE * father_ptr, ** new_node_ptr;
     pthread_mutex_lock(&termination_flag_mutex_lock);
-    terminated = termination_flag;
+    terminated = termination_flag; // 根据termination_flag判断是否rebuild
     pthread_mutex_unlock(&termination_flag_mutex_lock);
     while (!terminated){
         pthread_mutex_lock(&rebuild_ptr_mutex_lock);
@@ -213,52 +213,52 @@ void KD_TREE<PointType>::multi_thread_rebuild(){
                 printf("\n\n\n\n\n\n\n\n\n\n\n ERROR!!! \n\n\n\n\n\n\n\n\n");
             }
             rebuild_flag = true;
-            if (*Rebuild_Ptr == Root_Node) {
+            if (*Rebuild_Ptr == Root_Node) { // 当Rebuild_Ptr指向root node时，重建树的相关属性直接使用root_node的
                 Treesize_tmp = Root_Node->TreeSize;
                 Validnum_tmp = Root_Node->TreeSize - Root_Node->invalid_point_num;
                 alpha_bal_tmp = Root_Node->alpha_bal;
                 alpha_del_tmp = Root_Node->alpha_del;
             }
-            KD_TREE_NODE * old_root_node = (*Rebuild_Ptr);                            
-            father_ptr = (*Rebuild_Ptr)->father_ptr;  
-            PointVector ().swap(Rebuild_PCL_Storage);
+            KD_TREE_NODE * old_root_node = (*Rebuild_Ptr); // 存储原始根节点                       
+            father_ptr = (*Rebuild_Ptr)->father_ptr;   // 存储原始根节点的父节点
+            PointVector().swap(Rebuild_PCL_Storage); // 释放Rebuild_PCL_Storage中的内存
             // Lock Search 
             pthread_mutex_lock(&search_flag_mutex);
-            while (search_mutex_counter != 0){
-                pthread_mutex_unlock(&search_flag_mutex);
-                usleep(1);             
-                pthread_mutex_lock(&search_flag_mutex);
+            while (search_mutex_counter != 0){ // 当不为0时，表示别的线程正在占用资源
+                pthread_mutex_unlock(&search_flag_mutex); //临时解锁
+                usleep(1); // 休眠1 us            
+                pthread_mutex_lock(&search_flag_mutex); // 加锁，保证读取search_mutex_counter时安全
             }
             search_mutex_counter = -1;
             pthread_mutex_unlock(&search_flag_mutex);
             // Lock deleted points cache
-            pthread_mutex_lock(&points_deleted_rebuild_mutex_lock);    
-            flatten(*Rebuild_Ptr, Rebuild_PCL_Storage, MULTI_THREAD_REC);
+            pthread_mutex_lock(&points_deleted_rebuild_mutex_lock);    // flatten操作需要加锁 
+            flatten(*Rebuild_Ptr, Rebuild_PCL_Storage, MULTI_THREAD_REC); // 将Rebuild_Ptr的节点按序存入Rebuild_PCL_Storage
             // Unlock deleted points cache
             pthread_mutex_unlock(&points_deleted_rebuild_mutex_lock);
             // Unlock Search
-            pthread_mutex_lock(&search_flag_mutex);
+            pthread_mutex_lock(&search_flag_mutex); // 多线程访问共享资源时需要加锁
             search_mutex_counter = 0;
             pthread_mutex_unlock(&search_flag_mutex);              
             pthread_mutex_unlock(&working_flag_mutex);   
             /* Rebuild and update missed operations*/
             Operation_Logger_Type Operation;
-            KD_TREE_NODE * new_root_node = nullptr;  
-            if (int(Rebuild_PCL_Storage.size()) > 0){
-                BuildTree(&new_root_node, 0, Rebuild_PCL_Storage.size()-1, Rebuild_PCL_Storage);
+            KD_TREE_NODE * new_root_node = nullptr;  // 子树新的根节点
+            if (int(Rebuild_PCL_Storage.size()) > 0){ // 若满足重新建树条件
+                BuildTree(&new_root_node, 0, Rebuild_PCL_Storage.size()-1, Rebuild_PCL_Storage); // 构建树
                 // Rebuild has been done. Updates the blocked operations into the new tree
                 pthread_mutex_lock(&working_flag_mutex);
                 pthread_mutex_lock(&rebuild_logger_mutex_lock);
                 int tmp_counter = 0;
-                while (!Rebuild_Logger.empty()){
+                while (!Rebuild_Logger.empty()){ // 遍历Rebuild_Logger中存储的操作
                     Operation = Rebuild_Logger.front();
                     max_queue_size = max(max_queue_size, Rebuild_Logger.size());
                     Rebuild_Logger.pop();
                     pthread_mutex_unlock(&rebuild_logger_mutex_lock);                  
                     pthread_mutex_unlock(&working_flag_mutex);
-                    run_operation(&new_root_node, Operation);
+                    run_operation(&new_root_node, Operation); // 在重建后的子树上执行队列中的操作
                     tmp_counter ++;
-                    if (tmp_counter % 10 == 0) usleep(1);
+                    if (tmp_counter % 10 == 0) usleep(1); // 每10次休眠1us
                     pthread_mutex_lock(&working_flag_mutex);
                     pthread_mutex_lock(&rebuild_logger_mutex_lock);               
                 }   
@@ -274,7 +274,7 @@ void KD_TREE<PointType>::multi_thread_rebuild(){
             }
             search_mutex_counter = -1;
             pthread_mutex_unlock(&search_flag_mutex);
-            if (father_ptr->left_son_ptr == *Rebuild_Ptr) {
+            if (father_ptr->left_son_ptr == *Rebuild_Ptr) { // 将重建的subtree替代原来的subtree
                 father_ptr->left_son_ptr = new_root_node;
             } else if (father_ptr->right_son_ptr == *Rebuild_Ptr){             
                 father_ptr->right_son_ptr = new_root_node;
@@ -283,16 +283,16 @@ void KD_TREE<PointType>::multi_thread_rebuild(){
             }
             if (new_root_node != nullptr) new_root_node->father_ptr = father_ptr;
             (*Rebuild_Ptr) = new_root_node;
-            int valid_old = old_root_node->TreeSize-old_root_node->invalid_point_num;
-            int valid_new = new_root_node->TreeSize-new_root_node->invalid_point_num;
-            if (father_ptr == STATIC_ROOT_NODE) Root_Node = STATIC_ROOT_NODE->left_son_ptr;
+            int valid_old = old_root_node->TreeSize - old_root_node->invalid_point_num;
+            int valid_new = new_root_node->TreeSize - new_root_node->invalid_point_num;
+            if (father_ptr == STATIC_ROOT_NODE) Root_Node = STATIC_ROOT_NODE->left_son_ptr; // ？？？
             KD_TREE_NODE * update_root = *Rebuild_Ptr;
             while (update_root != nullptr && update_root != Root_Node){
-                update_root = update_root->father_ptr;
+                update_root = update_root->father_ptr; // 向上遍历更新各个节点的信息,range、tree_size、alpha_bal、alpha_del等
                 if (update_root->working_flag) break;
                 if (update_root == update_root->father_ptr->left_son_ptr && update_root->father_ptr->need_push_down_to_left) break;
                 if (update_root == update_root->father_ptr->right_son_ptr && update_root->father_ptr->need_push_down_to_right) break;
-                Update(update_root);
+                Update(update_root); // 更新节点属性
             }
             pthread_mutex_lock(&search_flag_mutex);
             search_mutex_counter = 0;
@@ -301,7 +301,7 @@ void KD_TREE<PointType>::multi_thread_rebuild(){
             pthread_mutex_unlock(&working_flag_mutex);
             rebuild_flag = false;                     
             /* Delete discarded tree nodes */
-            delete_tree_nodes(&old_root_node);
+            delete_tree_nodes(&old_root_node); // 完成子树重建之后，删除deleted标记为true的节点
         } else {
             pthread_mutex_unlock(&working_flag_mutex);             
         }
@@ -572,17 +572,17 @@ void KD_TREE<PointType>::acquire_removed_points(PointVector & removed_points){
 
 template <typename PointType>
 void KD_TREE<PointType>::BuildTree(KD_TREE_NODE ** root, int l, int r, PointVector & Storage){
-    if (l>r) return;
-    *root = new KD_TREE_NODE;
-    InitTreeNode(*root);
-    int mid = (l+r)>>1;
+    if (l>r) return; // l和r分别为指向Storage头、尾索引
+    *root = new KD_TREE_NODE; // 分配内存
+    InitTreeNode(*root); // 初始化根节点相关属性
+    int mid = (l+r)>>1; // 位运算，向右移一位，相当于/，比/高效
     int div_axis = 0;
     int i;
     // Find the best division Axis
     float min_value[3] = {INFINITY, INFINITY, INFINITY};
     float max_value[3] = {-INFINITY, -INFINITY, -INFINITY};
     float dim_range[3] = {0,0,0};
-    for (i=l;i<=r;i++){
+    for (i=l;i<=r;i++){ // 统计输入点云在x, y, z三个方向的范围
         min_value[0] = min(min_value[0], Storage[i].x);
         min_value[1] = min(min_value[1], Storage[i].y);
         min_value[2] = min(min_value[2], Storage[i].z);
@@ -592,7 +592,7 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE ** root, int l, int r, PointVect
     }
     // Select the longest dimension as division axis
     for (i=0;i<3;i++) dim_range[i] = max_value[i] - min_value[i];
-    for (i=1;i<3;i++) if (dim_range[i] > dim_range[div_axis]) div_axis = i;
+    for (i=1;i<3;i++) if (dim_range[i] > dim_range[div_axis]) div_axis = i; // 选取点云分布最广的维度为划分轴
     // Divide by the division axis and recursively build.
 
     (*root)->division_axis = div_axis;
@@ -610,14 +610,14 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE ** root, int l, int r, PointVect
     default:
         nth_element(begin(Storage)+l, begin(Storage)+mid, begin(Storage)+r+1, point_cmp_x);
         break;
-    }  
-    (*root)->point = Storage[mid]; 
+    }  // nth_element()函数可以保证Storage[mid]左侧元素比自身小，而右侧比自身大
+    (*root)->point = Storage[mid]; // 将中位数作为根节点
     KD_TREE_NODE * left_son = nullptr, * right_son = nullptr;
-    BuildTree(&left_son, l, mid-1, Storage);
-    BuildTree(&right_son, mid+1, r, Storage);  
+    BuildTree(&left_son, l, mid-1, Storage); // 递归构建左子树
+    BuildTree(&right_son, mid+1, r, Storage);  // 递归构建右子树
     (*root)->left_son_ptr = left_son;
     (*root)->right_son_ptr = right_son;
-    Update((*root));  
+    Update((*root));  // 更新subtree的相关属性，如range、alpha_del、alpha_bal、treesize等
     return;
 }
 
@@ -1113,8 +1113,8 @@ void KD_TREE<PointType>::Push_Down(KD_TREE_NODE *root){
     operation.op = PUSH_DOWN;
     operation.tree_deleted = root->tree_deleted;
     operation.tree_downsample_deleted = root->tree_downsample_deleted;
-    if (root->need_push_down_to_left && root->left_son_ptr != nullptr){
-        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != root->left_son_ptr){
+    if (root->need_push_down_to_left && root->left_son_ptr != nullptr){ // 若左子树需要下推且存在左子树
+        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != root->left_son_ptr){ // 若重建的节点为空或者不为当前的左子节点
             root->left_son_ptr->tree_downsample_deleted |= root->tree_downsample_deleted;
             root->left_son_ptr->point_downsample_deleted |= root->tree_downsample_deleted;
             root->left_son_ptr->tree_deleted = root->tree_deleted || root->left_son_ptr->tree_downsample_deleted;
@@ -1124,8 +1124,8 @@ void KD_TREE<PointType>::Push_Down(KD_TREE_NODE *root){
                 else root->left_son_ptr->invalid_point_num = root->left_son_ptr->down_del_num;
             root->left_son_ptr->need_push_down_to_left = true;
             root->left_son_ptr->need_push_down_to_right = true;
-            root->need_push_down_to_left = false;                
-        } else {
+            root->need_push_down_to_left = false;     // push_down结束后置false           
+        } else { // 若重建的是当前节点
             pthread_mutex_lock(&working_flag_mutex);
             root->left_son_ptr->tree_downsample_deleted |= root->tree_downsample_deleted;
             root->left_son_ptr->point_downsample_deleted |= root->tree_downsample_deleted;
@@ -1168,7 +1168,7 @@ void KD_TREE<PointType>::Push_Down(KD_TREE_NODE *root){
                 else root->right_son_ptr->invalid_point_num = root->right_son_ptr->down_del_num;            
             root->right_son_ptr->need_push_down_to_left = true;
             root->right_son_ptr->need_push_down_to_right = true;
-            if (rebuild_flag){
+            if (rebuild_flag){ // 若正在重建，则暂存操作
                 pthread_mutex_lock(&rebuild_logger_mutex_lock);
                 Rebuild_Logger.push(operation);
                 pthread_mutex_unlock(&rebuild_logger_mutex_lock);
@@ -1181,27 +1181,27 @@ void KD_TREE<PointType>::Push_Down(KD_TREE_NODE *root){
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Update(KD_TREE_NODE * root){
-    KD_TREE_NODE * left_son_ptr = root->left_son_ptr;
+void KD_TREE<PointType>::Update(KD_TREE_NODE * root){ // 更新重建的subtree相关属性（treesize, invalidnum, range etc.）
+    KD_TREE_NODE * left_son_ptr = root->left_son_ptr; // 左孩子
     KD_TREE_NODE * right_son_ptr = root->right_son_ptr;
     float tmp_range_x[2] = {INFINITY, -INFINITY};
     float tmp_range_y[2] = {INFINITY, -INFINITY};
     float tmp_range_z[2] = {INFINITY, -INFINITY};
     // Update Tree Size   
-    if (left_son_ptr != nullptr && right_son_ptr != nullptr){
+    if (left_son_ptr != nullptr && right_son_ptr != nullptr){ // 左、右孩子都存在
         root->TreeSize = left_son_ptr->TreeSize + right_son_ptr->TreeSize + 1;
         root->invalid_point_num = left_son_ptr->invalid_point_num + right_son_ptr->invalid_point_num + (root->point_deleted? 1:0);
         root->down_del_num = left_son_ptr->down_del_num + right_son_ptr->down_del_num + (root->point_downsample_deleted? 1:0);
         root->tree_downsample_deleted = left_son_ptr->tree_downsample_deleted & right_son_ptr->tree_downsample_deleted & root->point_downsample_deleted;
         root->tree_deleted = left_son_ptr->tree_deleted && right_son_ptr->tree_deleted && root->point_deleted;
-        if (root->tree_deleted || (!left_son_ptr->tree_deleted && !right_son_ptr->tree_deleted && !root->point_deleted)){
+        if (root->tree_deleted || (!left_son_ptr->tree_deleted && !right_son_ptr->tree_deleted && !root->point_deleted)){ // 
             tmp_range_x[0] = min(min(left_son_ptr->node_range_x[0],right_son_ptr->node_range_x[0]),root->point.x);
             tmp_range_x[1] = max(max(left_son_ptr->node_range_x[1],right_son_ptr->node_range_x[1]),root->point.x);
             tmp_range_y[0] = min(min(left_son_ptr->node_range_y[0],right_son_ptr->node_range_y[0]),root->point.y);
             tmp_range_y[1] = max(max(left_son_ptr->node_range_y[1],right_son_ptr->node_range_y[1]),root->point.y);
             tmp_range_z[0] = min(min(left_son_ptr->node_range_z[0],right_son_ptr->node_range_z[0]),root->point.z);
             tmp_range_z[1] = max(max(left_son_ptr->node_range_z[1],right_son_ptr->node_range_z[1]),root->point.z);
-        } else {
+        } else { // root->tree_deleted=false left_son_ptr->tree_deleted、right_son_ptr->tree_deleted、root->point_deleted中有被删除的
             if (!left_son_ptr->tree_deleted){
                 tmp_range_x[0] = min(tmp_range_x[0], left_son_ptr->node_range_x[0]);
                 tmp_range_x[1] = max(tmp_range_x[1], left_son_ptr->node_range_x[1]);
@@ -1227,7 +1227,7 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE * root){
                 tmp_range_z[1] = max(tmp_range_z[1], root->point.z);                 
             }
         }
-    } else if (left_son_ptr != nullptr){
+    } else if (left_son_ptr != nullptr){ // 只有左孩子存在
         root->TreeSize = left_son_ptr->TreeSize + 1;
         root->invalid_point_num = left_son_ptr->invalid_point_num + (root->point_deleted?1:0);
         root->down_del_num = left_son_ptr->down_del_num + (root->point_downsample_deleted?1:0);
@@ -1259,7 +1259,7 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE * root){
             }            
         }
 
-    } else if (right_son_ptr != nullptr){
+    } else if (right_son_ptr != nullptr){ // 只有右孩子存在
         root->TreeSize = right_son_ptr->TreeSize + 1;
         root->invalid_point_num = right_son_ptr->invalid_point_num + (root->point_deleted? 1:0);
         root->down_del_num = right_son_ptr->down_del_num + (root->point_downsample_deleted? 1:0);        
@@ -1290,7 +1290,7 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE * root){
                 tmp_range_z[1] = max(tmp_range_z[1], root->point.z);                 
             }            
         }
-    } else {
+    } else { // 没有孩子
         root->TreeSize = 1;
         root->invalid_point_num = (root->point_deleted? 1:0);
         root->down_del_num = (root->point_downsample_deleted? 1:0);
@@ -1309,35 +1309,35 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE * root){
     float x_L = (root->node_range_x[1] - root->node_range_x[0]) * 0.5;
     float y_L = (root->node_range_y[1] - root->node_range_y[0]) * 0.5;
     float z_L = (root->node_range_z[1] - root->node_range_z[0]) * 0.5;
-    root->radius_sq = x_L*x_L + y_L * y_L + z_L * z_L;    
+    root->radius_sq = x_L * x_L + y_L * y_L + z_L * z_L;    
     if (left_son_ptr != nullptr) left_son_ptr -> father_ptr = root;
     if (right_son_ptr != nullptr) right_son_ptr -> father_ptr = root;
-    if (root == Root_Node && root->TreeSize > 3){
+    if (root == Root_Node && root->TreeSize > 3){ // 统计平衡因子，alpha_bal和alpha_del
         KD_TREE_NODE * son_ptr = root->left_son_ptr;
         if (son_ptr == nullptr) son_ptr = root->right_son_ptr;
-        float tmp_bal = float(son_ptr->TreeSize) / (root->TreeSize-1);
-        root->alpha_del = float(root->invalid_point_num)/ root->TreeSize;
-        root->alpha_bal = (tmp_bal>=0.5-EPSS)?tmp_bal:1-tmp_bal;
+        float tmp_bal = float(son_ptr->TreeSize) / (root->TreeSize-1); // 计算平衡因子，左/右子树节点数除以子树节点数之和
+        root->alpha_del = float(root->invalid_point_num)/ root->TreeSize; // 计算删除因子，删除点数除以节点数,取值范围为(0~1)
+        root->alpha_bal = (tmp_bal>=0.5-EPSS)?tmp_bal:1-tmp_bal; //alpha_bal取值范围为(0.5~1)
     }   
     return;
 }
 
 template <typename PointType>
 void KD_TREE<PointType>::flatten(KD_TREE_NODE * root, PointVector &Storage, delete_point_storage_set storage_type){
-    if (root == nullptr) return;
+    if (root == nullptr) return; // 终止递归
     Push_Down(root);
-    if (!root->point_deleted) {
+    if (!root->point_deleted) { // 若节点属性deleted为false，则将该节点添加到Storage
         Storage.push_back(root->point);
     }
-    flatten(root->left_son_ptr, Storage, storage_type);
-    flatten(root->right_son_ptr, Storage, storage_type);
+    flatten(root->left_son_ptr, Storage, storage_type); // 遍历左子树
+    flatten(root->right_son_ptr, Storage, storage_type); // 遍历右子树
     switch (storage_type)
     {
     case NOT_RECORD:
         break;
     case DELETE_POINTS_REC:
         if (root->point_deleted && !root->point_downsample_deleted) {
-            Points_deleted.push_back(root->point);
+            Points_deleted.push_back(root->point); // 添加入点删除列表
         }       
         break;
     case MULTI_THREAD_REC:
@@ -1354,7 +1354,7 @@ void KD_TREE<PointType>::flatten(KD_TREE_NODE * root, PointVector &Storage, dele
 template <typename PointType>
 void KD_TREE<PointType>::delete_tree_nodes(KD_TREE_NODE ** root){ 
     if (*root == nullptr) return;
-    Push_Down(*root);    
+    Push_Down(*root);    // 将当前节点的一些属性copy到子节点
     delete_tree_nodes(&(*root)->left_son_ptr);
     delete_tree_nodes(&(*root)->right_son_ptr);
     
@@ -1402,7 +1402,7 @@ void MANUAL_Q<T>::clear(){
     counter = 0;
     is_empty = true;
     return;
-}
+} // 头、尾、计数均置0
 
 template <typename T>
 void MANUAL_Q<T>::pop(){
@@ -1412,7 +1412,7 @@ void MANUAL_Q<T>::pop(){
     counter --;
     if (counter == 0) is_empty = true;
     return;
-}
+} // 头指针后移
 
 template <typename T>
 T MANUAL_Q<T>::front(){
@@ -1431,7 +1431,7 @@ void MANUAL_Q<T>::push(T op){
     if (is_empty) is_empty = false;
     tail ++;
     tail %= Q_LEN;
-}
+} // 尾指针后移，在尾部插入元素
 
 template <typename T>
 bool MANUAL_Q<T>::empty(){

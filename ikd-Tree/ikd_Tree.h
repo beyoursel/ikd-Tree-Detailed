@@ -41,8 +41,8 @@ enum delete_point_storage_set {NOT_RECORD, DELETE_POINTS_REC, MULTI_THREAD_REC};
 template <typename T>
 class MANUAL_Q{
     private:
-        int head = 0,tail = 0, counter = 0;
-        T q[Q_LEN];
+        int head = 0,tail = 0, counter = 0; // counter记录队列内元素个数
+        T q[Q_LEN]; // Q_LEN表示队列最大容量
         bool is_empty;
     public:
         void pop();
@@ -63,26 +63,26 @@ public:
     using Ptr = shared_ptr<KD_TREE<PointType>>;
     struct KD_TREE_NODE{
         PointType point;
-        uint8_t division_axis;  
+        uint8_t division_axis;  // 标记划分的坐标轴
         int TreeSize = 1; // 以当前节点为根节点的subtree中所有节点的个数
-        int invalid_point_num = 0;
+        int invalid_point_num = 0; // 失效点数量，即deleted标记为true的点个数
         int down_del_num = 0;
-        bool point_deleted = false;
+        bool point_deleted = false; // 标记当前节点是否被删除
         bool tree_deleted = false;  // 整棵子树是否标记为删除
-        bool point_downsample_deleted = false;
+        bool point_downsample_deleted = false; // 下采样时被删除？？？
         bool tree_downsample_deleted = false;
         bool need_push_down_to_left = false;
         bool need_push_down_to_right = false;
         bool working_flag = false;
-        float radius_sq;
-        pthread_mutex_t push_down_mutex_lock;
+        float radius_sq; // bbox的半径平方，最大最小点差值的一般的平方和
+        pthread_mutex_t push_down_mutex_lock; // 互斥锁
         float node_range_x[2], node_range_y[2], node_range_z[2]; // 以当前节点为根节点的subtree中所有节点，在三维空间中的最小bbox，对应的max_point、min_point  // 剪枝加速都依赖该变量 
         KD_TREE_NODE *left_son_ptr = nullptr;
         KD_TREE_NODE *right_son_ptr = nullptr;
         KD_TREE_NODE *father_ptr = nullptr;
         // For paper data record
-        float alpha_del;
-        float alpha_bal;
+        float alpha_del; // deleted criterion
+        float alpha_bal; // balance criterion
     };
 
     struct Operation_Logger_Type{
@@ -90,7 +90,7 @@ public:
         BoxPointType boxpoint;
         bool tree_deleted, tree_downsample_deleted;
         operation_set op;
-    };
+    }; // 用于记录flatten重新建树时等待的操作
 
     struct PointType_CMP{
         PointType point;
@@ -103,23 +103,23 @@ public:
             if (fabs(dist - a.dist) < 1e-10) return point.x < a.point.x;
             else return dist < a.dist;
         }    
-    };
+    }; // 定义一个基于距离的比较器，用于构建最大堆（根节点值最大，父节点值大于子节点的值）
 
     class MANUAL_HEAP{
         public:
             MANUAL_HEAP(int max_capacity = 100){
                 cap = max_capacity;
                 heap = new PointType_CMP[max_capacity];
-                heap_size = 0; // ？
+                heap_size = 0; // 构造函数初始化最大堆，但是元素个数仍为0，需要PUSH操作将元素压入堆中
             }
 
             ~MANUAL_HEAP(){ delete[] heap;}
 
             void pop(){
                 if (heap_size == 0) return;
-                heap[0] = heap[heap_size-1]; 
-                heap_size--;
-                MoveDown(0);
+                heap[0] = heap[heap_size-1]; // 用堆中最后一个元素覆盖堆顶元素，即移除堆顶元素
+                heap_size--; // 减少堆中元素个数
+                MoveDown(0); // 从堆顶向下恢复最大堆的性质
                 return;
             }
 
@@ -127,8 +127,8 @@ public:
 
             void push(PointType_CMP point){
                 if (heap_size >= cap) return;
-                heap[heap_size] = point;
-                FloatUp(heap_size);
+                heap[heap_size] = point; // 将元素压入堆尾
+                FloatUp(heap_size); // 上浮操作，使得当前节点满足最大堆的性质
                 heap_size++;
                 return;
             }
@@ -181,8 +181,8 @@ private:
     pthread_mutex_t rebuild_logger_mutex_lock, points_deleted_rebuild_mutex_lock;
     // queue<Operation_Logger_Type> Rebuild_Logger;
     MANUAL_Q<Operation_Logger_Type> Rebuild_Logger;    
-    PointVector Rebuild_PCL_Storage; // 保存PointType的数组
-    KD_TREE_NODE ** Rebuild_Ptr = nullptr; // 二叉树
+    PointVector Rebuild_PCL_Storage; // 保存需要重建的subtree中的点
+    KD_TREE_NODE ** Rebuild_Ptr = nullptr; // 指针的指针，指向节点的子节点
     int search_mutex_counter = 0;
     static void * multi_thread_ptr(void *arg);
     void multi_thread_rebuild();
@@ -202,7 +202,7 @@ private:
     PointVector Multithread_Points_deleted;
     void InitTreeNode(KD_TREE_NODE * root);
     void Test_Lock_States(KD_TREE_NODE *root);
-    void BuildTree(KD_TREE_NODE ** root, int l, int r, PointVector & Storage);
+    void BuildTree(KD_TREE_NODE ** root, int l, int r, PointVector & Storage); // 构建kdtree
     void Rebuild(KD_TREE_NODE ** root);
     int Delete_by_range(KD_TREE_NODE ** root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE ** root, PointType point, bool allow_rebuild);
@@ -224,14 +224,14 @@ private:
     static bool point_cmp_z(PointType a, PointType b); 
 
 public:
-    KD_TREE(float delete_param = 0.5, float balance_param = 0.6 , float box_length = 0.2);
+    KD_TREE(float delete_param = 0.5, float balance_param = 0.6 , float box_length = 0.2); // 构建kdtree
     ~KD_TREE();
-    void Set_delete_criterion_param(float delete_param);
-    void Set_balance_criterion_param(float balance_param);
-    void set_downsample_param(float box_length);
+    void Set_delete_criterion_param(float delete_param); // 设置alpha_del
+    void Set_balance_criterion_param(float balance_param); // 设置alpha_bal
+    void set_downsample_param(float box_length); // 设置下采样的分辨率
     void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7, float box_length = 0.2); 
-    int size();
-    int validnum();
+    int size(); // 返回kdtree的尺寸
+    int validnum(); // 返回tree中有效点个数
     void root_alpha(float &alpha_bal, float &alpha_del);
     void Build(PointVector point_cloud);
     void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY);
@@ -246,6 +246,6 @@ public:
     BoxPointType tree_range();
     PointVector PCL_Storage;     
     KD_TREE_NODE * Root_Node = nullptr;
-    int max_queue_size = 0;
+    int max_queue_size = 0; // 存储Rebuild_Logger队列大小
 };
 
