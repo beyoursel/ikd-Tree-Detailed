@@ -13,7 +13,7 @@ KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_l
     downsample_size = box_length;
     Rebuild_Logger.clear();           
     termination_flag = false;
-    start_thread(); // 启动multi-rebuild线程
+    start_thread(); // 启动multi-rebuild线程，实际上是额外创建了一个线程
 }
 
 template <typename PointType>
@@ -23,7 +23,8 @@ KD_TREE<PointType>::~KD_TREE()
     Delete_Storage_Disabled = true;
     delete_tree_nodes(&Root_Node);
     PointVector ().swap(PCL_Storage);
-    Rebuild_Logger.clear();           
+    Rebuild_Logger.clear();        
+    // malloc_trim(0); // 释放内存   
 }
 
 template <typename PointType>
@@ -358,16 +359,23 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE ** root, Operation_Logger_Ty
 
 template <typename PointType>
 void KD_TREE<PointType>::Build(PointVector point_cloud){
+    /**
+     * 1. 清空之前存在的kdtree
+     * 2. 建立虚拟头节点并初始化
+     * 3. 根据输入点云建立kdtree
+     * 4. 更新虚拟节点的相关属性
+     * 5. 虚拟节点左孩子指向根节点
+     */
     if (Root_Node != nullptr){ // 初始创建树时，需要清空之前的树
         delete_tree_nodes(&Root_Node);
-    }
+    } // 若kdtree已经存在，则从Root_Node开始清空
     if (point_cloud.size() == 0) return;
-    STATIC_ROOT_NODE = new KD_TREE_NODE;
-    InitTreeNode(STATIC_ROOT_NODE); 
-    BuildTree(&STATIC_ROOT_NODE->left_son_ptr, 0, point_cloud.size()-1, point_cloud);
-    Update(STATIC_ROOT_NODE);
-    STATIC_ROOT_NODE->TreeSize = 0;
-    Root_Node = STATIC_ROOT_NODE->left_son_ptr;    
+    STATIC_ROOT_NODE = new KD_TREE_NODE; // 创建虚拟头节点
+    InitTreeNode(STATIC_ROOT_NODE); // 初始化虚拟头节点
+    BuildTree(&STATIC_ROOT_NODE->left_son_ptr, 0, point_cloud.size()-1, point_cloud);// build-tree
+    Update(STATIC_ROOT_NODE); // 更新节点属性
+    STATIC_ROOT_NODE->TreeSize = 0; // 虚拟头节点的treesize设置为0
+    Root_Node = STATIC_ROOT_NODE->left_son_ptr;  // kdtree的根节点设置为虚拟头节点的左孩子
 }
 
 template <typename PointType>
@@ -419,29 +427,38 @@ void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, Poin
 
 template <typename PointType>
 int KD_TREE<PointType>::Add_Points(PointVector & PointToAdd, bool downsample_on){
+    /**
+     * \brief 向kdtree中增加点云，遍历输入点云，调用Add_By_Point
+     * 1. 是否进行下采样
+     * 2. 若进行下采样，根据降采样分辨率，找到插入点对应的bbox，然后计算bbox的中点，搜索bbox内的点云，计算距离中点最近的点，作为降采样后的点。
+     * 3. 删除降采样后的无效点
+     */
     int NewPointSize = PointToAdd.size();
-    int tree_size = size();
+    int tree_size = size(); // 获取当前kdtree的节点个数
     BoxPointType Box_of_Point;
     PointType downsample_result, mid_point;
     bool downsample_switch = downsample_on && DOWNSAMPLE_SWITCH;
     float min_dist, tmp_dist;
     int tmp_counter = 0;
-    for (int i=0; i<PointToAdd.size();i++){
-        if (downsample_switch){
-            Box_of_Point.vertex_min[0] = floor(PointToAdd[i].x/downsample_size)*downsample_size;
-            Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0]+downsample_size;
-            Box_of_Point.vertex_min[1] = floor(PointToAdd[i].y/downsample_size)*downsample_size;
-            Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1]+downsample_size; 
-            Box_of_Point.vertex_min[2] = floor(PointToAdd[i].z/downsample_size)*downsample_size;
-            Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2]+downsample_size;   
-            mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0]-Box_of_Point.vertex_min[0])/2.0;
-            mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1]-Box_of_Point.vertex_min[1])/2.0;
-            mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2]-Box_of_Point.vertex_min[2])/2.0;
-            PointVector ().swap(Downsample_Storage);
+    for (int i=0; i<PointToAdd.size();i++){ // 遍历新增的点云
+        if (downsample_switch){ // 若需要下采样
+            // 计算当前点落入的box
+            Box_of_Point.vertex_min[0] = floor(PointToAdd[i].x / downsample_size) * downsample_size;
+            Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
+            Box_of_Point.vertex_min[1] = floor(PointToAdd[i].y / downsample_size) * downsample_size;
+            Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size; 
+            Box_of_Point.vertex_min[2] = floor(PointToAdd[i].z / downsample_size) * downsample_size;
+            Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;   
+            // 计算box中心点
+            mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0])/2.0;
+            mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1] - Box_of_Point.vertex_min[1])/2.0;
+            mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2] - Box_of_Point.vertex_min[2])/2.0;
+            PointVector().swap(Downsample_Storage);
+            // 搜索box内的节点坐标
             Search_by_range(Root_Node, Box_of_Point, Downsample_Storage);
-            min_dist = calc_dist(PointToAdd[i],mid_point);
+            min_dist = calc_dist(PointToAdd[i],mid_point); // 计算当前增加点与box中点的距离
             downsample_result = PointToAdd[i];                
-            for (int index = 0; index < Downsample_Storage.size(); index++){
+            for (int index = 0; index < Downsample_Storage.size(); index++){ // 遍历box中的点，选取距离mid_point最近的点作为下采样后的点
                 tmp_dist = calc_dist(Downsample_Storage[index], mid_point);
                 if (tmp_dist < min_dist){
                     min_dist = tmp_dist;
@@ -450,8 +467,8 @@ int KD_TREE<PointType>::Add_Points(PointVector & PointToAdd, bool downsample_on)
             }
             if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node){  
                 if (Downsample_Storage.size() > 1 || same_point(PointToAdd[i], downsample_result)){
-                    if (Downsample_Storage.size() > 0) Delete_by_range(&Root_Node, Box_of_Point, true, true);
-                    Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis);
+                    if (Downsample_Storage.size() > 0) Delete_by_range(&Root_Node, Box_of_Point, true, true); // 删除下采样后不需要的点
+                    Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis); // 若没有启用多线程重建，这里allow_rebuild为true
                     tmp_counter ++;                      
                 }
             } else {
@@ -474,7 +491,7 @@ int KD_TREE<PointType>::Add_Points(PointVector & PointToAdd, bool downsample_on)
                     pthread_mutex_unlock(&working_flag_mutex);
                 };
             }
-        } else {
+        } else { // 不需要下采样
             if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node){
                 Add_by_point(&Root_Node, PointToAdd[i], true, Root_Node->division_axis);     
             } else {
@@ -656,11 +673,12 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE ** root,  BoxPointType boxp
     if ((*root) == nullptr || (*root)->tree_deleted) return 0;
     (*root)->working_flag = true;
     Push_Down(*root);
-    int tmp_counter = 0;
+    int tmp_counter = 0; // 记录被删除的节点数量
     if (boxpoint.vertex_max[0] <= (*root)->node_range_x[0] || boxpoint.vertex_min[0] > (*root)->node_range_x[1]) return 0;
     if (boxpoint.vertex_max[1] <= (*root)->node_range_y[0] || boxpoint.vertex_min[1] > (*root)->node_range_y[1]) return 0;
     if (boxpoint.vertex_max[2] <= (*root)->node_range_z[0] || boxpoint.vertex_min[2] > (*root)->node_range_z[1]) return 0;
     if (boxpoint.vertex_min[0] <= (*root)->node_range_x[0] && boxpoint.vertex_max[0] > (*root)->node_range_x[1] && boxpoint.vertex_min[1] <= (*root)->node_range_y[0] && boxpoint.vertex_max[1] > (*root)->node_range_y[1] && boxpoint.vertex_min[2] <= (*root)->node_range_z[0] && boxpoint.vertex_max[2] > (*root)->node_range_z[1]){
+        // subtree含于box
         (*root)->tree_deleted = true;
         (*root)->point_deleted = true;
         (*root)->need_push_down_to_left = true;
@@ -678,13 +696,13 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE ** root,  BoxPointType boxp
         (*root)->point_deleted = true;
         tmp_counter += 1;
         if (is_downsample) (*root)->point_downsample_deleted = true;
-    }
+    } // 删除当前节点坐标，delete_by_range最小单元
     Operation_Logger_Type delete_box_log;
     struct timespec Timeout;    
     if (is_downsample) delete_box_log.op = DOWNSAMPLE_DELETE;
         else delete_box_log.op = DELETE_BOX;
     delete_box_log.boxpoint = boxpoint;
-    if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr){
+    if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr){ // 左子树
         tmp_counter += Delete_by_range(&((*root)->left_son_ptr), boxpoint, allow_rebuild, is_downsample);
     } else {
         pthread_mutex_lock(&working_flag_mutex);
@@ -696,7 +714,7 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE ** root,  BoxPointType boxp
         }
         pthread_mutex_unlock(&working_flag_mutex);
     }
-    if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr){
+    if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr){ // 右子树
         tmp_counter += Delete_by_range(&((*root)->right_son_ptr), boxpoint, allow_rebuild, is_downsample);
     } else {
         pthread_mutex_lock(&working_flag_mutex);
@@ -711,7 +729,7 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE ** root,  BoxPointType boxp
     Update(*root);     
     if (Rebuild_Ptr != nullptr && *Rebuild_Ptr == *root && (*root)->TreeSize < Multi_Thread_Rebuild_Point_Num) Rebuild_Ptr = nullptr; 
     bool need_rebuild = allow_rebuild & Criterion_Check((*root));
-    if (need_rebuild) Rebuild(root);
+    if (need_rebuild) Rebuild(root); // 判断是否需要重新建树
     if ((*root) != nullptr) (*root)->working_flag = false;
     return tmp_counter;
 }
@@ -768,6 +786,9 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE ** root, PointType point, 
 
 template <typename PointType>
 void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE ** root, BoxPointType boxpoint, bool allow_rebuild){
+    /**
+     * \brief 类似delete_by_range
+     */
     if ((*root) == nullptr) return;
     (*root)->working_flag = true;
     Push_Down(*root);       
@@ -824,25 +845,25 @@ void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE ** root, BoxPointType boxpoin
 template <typename PointType>
 void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE ** root, PointType point, bool allow_rebuild, int father_axis){     
     if (*root == nullptr){
-        *root = new KD_TREE_NODE;
+        *root = new KD_TREE_NODE; // *root为指向根节点的指针
         InitTreeNode(*root);
         (*root)->point = point;
-        (*root)->division_axis = (father_axis + 1) % 3;
+        (*root)->division_axis = (father_axis + 1) % 3; // 划分的轴为父节点的轴向后移一位
         Update(*root);
         return;
-    }
+    } // Add_by_point最小单元
     (*root)->working_flag = true;
     Operation_Logger_Type add_log;
     struct timespec Timeout;    
     add_log.op = ADD_POINT;
     add_log.point = point;
-    Push_Down(*root); // ？？？？
-    if (((*root)->division_axis == 0 && point.x < (*root)->point.x) || ((*root)->division_axis == 1 && point.y < (*root)->point.y) || ((*root)->division_axis == 2 && point.z < (*root)->point.z)){
+    Push_Down(*root);
+    if (((*root)->division_axis == 0 && point.x < (*root)->point.x) || ((*root)->division_axis == 1 && point.y < (*root)->point.y) || ((*root)->division_axis == 2 && point.z < (*root)->point.z)){ // 当该点处于左子树下时
         if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr){          
             Add_by_point(&(*root)->left_son_ptr, point, allow_rebuild, (*root)->division_axis);
         } else {
             pthread_mutex_lock(&working_flag_mutex);
-            Add_by_point(&(*root)->left_son_ptr, point, false,(*root)->division_axis);
+            Add_by_point(&(*root)->left_son_ptr, point, false,(*root)->division_axis); // allow_rebuild为false
             if (rebuild_flag){
                 pthread_mutex_lock(&rebuild_logger_mutex_lock);
                 Rebuild_Logger.push(add_log);
@@ -850,7 +871,7 @@ void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE ** root, PointType point, boo
             }
             pthread_mutex_unlock(&working_flag_mutex);            
         }
-    } else {  
+    } else {  // point落入右子树范围
         if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr){         
             Add_by_point(&(*root)->right_son_ptr, point, allow_rebuild,(*root)->division_axis);
         } else {
@@ -1021,6 +1042,12 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE * root, int k_nearest, PointType po
 
 template <typename PointType>
 void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, BoxPointType boxpoint, PointVector & Storage){
+    /**
+     * 1. 判断box和subtree在空间上是否存在交集
+     * 2. 若subtree含于box，则直接采用flatten方法
+     * 3. 若当前节点含于box，则push_back
+     * 4. 递归左右子树，考虑多线程需要加锁
+     */
     if (root == nullptr) return;
     Push_Down(root);       
     if (boxpoint.vertex_max[0] <= root->node_range_x[0] || boxpoint.vertex_min[0] > root->node_range_x[1]) return;
@@ -1029,10 +1056,10 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, BoxPointType boxpoi
     if (boxpoint.vertex_min[0] <= root->node_range_x[0] && boxpoint.vertex_max[0] > root->node_range_x[1] && boxpoint.vertex_min[1] <= root->node_range_y[0] && boxpoint.vertex_max[1] > root->node_range_y[1] && boxpoint.vertex_min[2] <= root->node_range_z[0] && boxpoint.vertex_max[2] > root->node_range_z[1]){
         flatten(root, Storage, NOT_RECORD);
         return;
-    }
+    } // 若子树完全容于box中，则直接将root下所有节点保存
     if (boxpoint.vertex_min[0] <= root->point.x && boxpoint.vertex_max[0] > root->point.x && boxpoint.vertex_min[1] <= root->point.y && boxpoint.vertex_max[1] > root->point.y && boxpoint.vertex_min[2] <= root->point.z && boxpoint.vertex_max[2] > root->point.z){
         if (!root->point_deleted) Storage.push_back(root->point);
-    }
+    } // 若当前节点坐标含于box且有效
     if ((Rebuild_Ptr == nullptr) || root->left_son_ptr != *Rebuild_Ptr){
         Search_by_range(root->left_son_ptr, boxpoint, Storage);
     } else {
@@ -1198,7 +1225,7 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE * root){ // 更新重建的subtree�
      * 1. 对应论文中的Pullup操作
      * 2. 总结位于当前节点T下subtree的相关属性，包括treesize、invalidnum、down_del_num、range
      * 3. 也会更新tree_downsample_deleted、tree_deleted。
-     * 4. 感觉是与push_down对应，psuh_down向下更新，而pullup是向上
+     * 4. 感觉是与push_down对应，psuh_down向下更新，而pullup是向上，将subtree的信息总结到但前节点
      */
     KD_TREE_NODE * left_son_ptr = root->left_son_ptr; // 左孩子
     KD_TREE_NODE * right_son_ptr = root->right_son_ptr;
@@ -1345,7 +1372,7 @@ template <typename PointType>
 void KD_TREE<PointType>::flatten(KD_TREE_NODE * root, PointVector &Storage, delete_point_storage_set storage_type){
     if (root == nullptr) return; // 终止递归
     Push_Down(root);
-    if (!root->point_deleted) { // 若节点属性deleted为false，则将该节点添加到Storage
+    if (!root->point_deleted) { // 若为有效节点，则将该节点添加到Storage
         Storage.push_back(root->point);
     }
     flatten(root->left_son_ptr, Storage, storage_type); // 遍历左子树

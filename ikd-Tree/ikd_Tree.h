@@ -69,11 +69,11 @@ public:
         int down_del_num = 0;
         bool point_deleted = false; // 标记当前节点是否被删除
         bool tree_deleted = false;  // 整棵子树是否标记为删除
-        bool point_downsample_deleted = false; // 下采样时被删除？？？
+        bool point_downsample_deleted = false; // 下采样时被删除
         bool tree_downsample_deleted = false;
         bool need_push_down_to_left = false;
         bool need_push_down_to_right = false;
-        bool working_flag = false;
+        bool working_flag = false; // 标记节点是否被占用，处于work状态
         float radius_sq; // bbox的半径平方，最大最小点差值的一般的平方和
         pthread_mutex_t push_down_mutex_lock; // 互斥锁
         float node_range_x[2], node_range_y[2], node_range_z[2]; // 以当前节点为根节点的subtree中所有节点，在三维空间中的最小bbox，对应的max_point、min_point  // 剪枝加速都依赖该变量 
@@ -180,7 +180,7 @@ private:
     pthread_mutex_t termination_flag_mutex_lock, rebuild_ptr_mutex_lock, working_flag_mutex, search_flag_mutex;
     pthread_mutex_t rebuild_logger_mutex_lock, points_deleted_rebuild_mutex_lock;
     // queue<Operation_Logger_Type> Rebuild_Logger;
-    MANUAL_Q<Operation_Logger_Type> Rebuild_Logger;    
+    MANUAL_Q<Operation_Logger_Type> Rebuild_Logger; // 重建子树时暂存的增量操作
     PointVector Rebuild_PCL_Storage; // 保存需要重建的subtree中的点
     KD_TREE_NODE ** Rebuild_Ptr = nullptr; // 指针的指针，指向节点的子节点
     int search_mutex_counter = 0;
@@ -188,22 +188,21 @@ private:
     void multi_thread_rebuild();
     void start_thread();
     void stop_thread();
-    void run_operation(KD_TREE_NODE ** root, Operation_Logger_Type operation);
+    void run_operation(KD_TREE_NODE ** root, Operation_Logger_Type operation); // 运行暂存的相关增量操作
     // KD Tree Functions and augmented variables
-    int Treesize_tmp = 0, Validnum_tmp = 0;
+    int Treesize_tmp = 0, Validnum_tmp = 0; // 临时保存的treesize和validnum，防止多线程时访问出现冲突
     float alpha_bal_tmp = 0.5, alpha_del_tmp = 0.0;
     float delete_criterion_param = 0.5f;
     float balance_criterion_param = 0.7f;
     float downsample_size = 0.2f;
     bool Delete_Storage_Disabled = false;
-    KD_TREE_NODE * STATIC_ROOT_NODE = nullptr; // 初始建树时的根节点
+    KD_TREE_NODE * STATIC_ROOT_NODE = nullptr; // 虚拟头节点
     PointVector Points_deleted;
     PointVector Downsample_Storage;
     PointVector Multithread_Points_deleted;
     void InitTreeNode(KD_TREE_NODE * root);
-    void Test_Lock_States(KD_TREE_NODE *root);
     void BuildTree(KD_TREE_NODE ** root, int l, int r, PointVector & Storage); // 构建kdtree
-    void Rebuild(KD_TREE_NODE ** root);
+    void Rebuild(KD_TREE_NODE ** root); // 主线程（单线程）重建子树
     int Delete_by_range(KD_TREE_NODE ** root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE ** root, PointType point, bool allow_rebuild);
     void Add_by_point(KD_TREE_NODE ** root, PointType point, bool allow_rebuild, int father_axis);
@@ -215,7 +214,6 @@ private:
     void Push_Down(KD_TREE_NODE * root);
     void Update(KD_TREE_NODE * root); 
     void delete_tree_nodes(KD_TREE_NODE ** root);
-    void downsample(KD_TREE_NODE ** root);
     bool same_point(PointType a, PointType b);
     float calc_dist(PointType a, PointType b);
     float calc_box_dist(KD_TREE_NODE * node, PointType point);    
@@ -237,7 +235,7 @@ public:
     void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY); // 最近邻搜索，内部时行search()接口
     void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage); // 基于BOX搜索，给定BOX的最近最远点； 内部执行search_by_range()接口
     void Radius_Search(PointType point, const float radius, PointVector &Storage); // 即与半径搜索节点; 内部执行Search_by_radius
-    int Add_Points(PointVector & PointToAdd, bool downsample_on); // 增量式增加点云
+    int Add_Points(PointVector & PointToAdd, bool downsample_on); // 增量式增加点云，需要指定是否进行下采样
     void Add_Point_Boxes(vector<BoxPointType> & BoxPoints);
     void Delete_Points(PointVector & PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> & BoxPoints);
@@ -245,7 +243,7 @@ public:
     void acquire_removed_points(PointVector & removed_points);
     BoxPointType tree_range();
     PointVector PCL_Storage;     
-    KD_TREE_NODE * Root_Node = nullptr;
+    KD_TREE_NODE * Root_Node = nullptr; // kdtree的根节点
     int max_queue_size = 0; // 存储Rebuild_Logger队列大小
 };
 
