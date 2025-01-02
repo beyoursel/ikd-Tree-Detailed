@@ -232,16 +232,16 @@ public:
     int validnum(); // 返回tree中有效点个数
     void root_alpha(float &alpha_bal, float &alpha_del); // 获取alpha_bal和alpha_del
     void Build(PointVector point_cloud); // 构建kdtree，初始建树
-    void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY); // 最近邻搜索，内部时行search()接口
+    void Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> & Point_Distance, double max_dist = INFINITY); // 最近邻搜索，内部时行search()接口； 最大搜索距离默认无穷大
     void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage); // 基于BOX搜索，给定BOX的最近最远点； 内部执行search_by_range()接口
     void Radius_Search(PointType point, const float radius, PointVector &Storage); // 即与半径搜索节点; 内部执行Search_by_radius
     int Add_Points(PointVector & PointToAdd, bool downsample_on); // 增量式增加点云，需要指定是否进行下采样
     void Add_Point_Boxes(vector<BoxPointType> & BoxPoints);
-    void Delete_Points(PointVector & PointToDel);
-    int Delete_Point_Boxes(vector<BoxPointType> & BoxPoints);
-    void flatten(KD_TREE_NODE * root, PointVector &Storage, delete_point_storage_set storage_type);
+    void Delete_Points(PointVector & PointToDel); // 调用delete_by_point接口
+    int Delete_Point_Boxes(vector<BoxPointType> & BoxPoints); // 调用delete_by_range
+    void flatten(KD_TREE_NODE * root, PointVector &Storage, delete_point_storage_set storage_type); // 遍历tree，将有效节点存入Storage
     void acquire_removed_points(PointVector & removed_points);
-    BoxPointType tree_range();
+    BoxPointType tree_range(); // 统计tree的range
     PointVector PCL_Storage;     
     KD_TREE_NODE * Root_Node = nullptr; // kdtree的根节点
     int max_queue_size = 0; // 存储Rebuild_Logger队列大小
