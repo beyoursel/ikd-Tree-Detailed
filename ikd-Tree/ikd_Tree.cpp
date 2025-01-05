@@ -628,7 +628,9 @@ int KD_TREE<PointType>::Delete_Point_Boxes(vector<BoxPointType> &BoxPoints) {
   int tmp_counter = 0;
   for (int i = 0; i < BoxPoints.size(); i++) {
     if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node) {
-      tmp_counter += Delete_by_range(&Root_Node, BoxPoints[i], true, false); // allowed_rebuild = true, downsample = false
+      tmp_counter +=
+          Delete_by_range(&Root_Node, BoxPoints[i], true,
+                          false); // allowed_rebuild = true, downsample = false
     } else {
       Operation_Logger_Type operation;
       operation.boxpoint = BoxPoints[i];
@@ -857,7 +859,8 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point,
     return; // 当root为空或者该节点下的subtree被删除
   (*root)->working_flag = true;
   Push_Down(*root);
-  if (same_point((*root)->point, point) && !(*root)->point_deleted) { // 待删除点为当前节点，且当前节点未删除
+  if (same_point((*root)->point, point) &&
+      !(*root)->point_deleted) { // 待删除点为当前节点，且当前节点未删除
     (*root)->point_deleted = true;
     (*root)->invalid_point_num += 1;
     if ((*root)->invalid_point_num == (*root)->TreeSize)
@@ -870,7 +873,8 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point,
   delete_log.point = point;
   if (((*root)->division_axis == 0 && point.x < (*root)->point.x) ||
       ((*root)->division_axis == 1 && point.y < (*root)->point.y) ||
-      ((*root)->division_axis == 2 && point.z < (*root)->point.z)) { // 左子树范围
+      ((*root)->division_axis == 2 &&
+       point.z < (*root)->point.z)) { // 左子树范围
     if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr) {
       Delete_by_point(&(*root)->left_son_ptr, point, allow_rebuild);
     } else {
@@ -900,7 +904,8 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point,
   Update(*root);
   if (Rebuild_Ptr != nullptr && *Rebuild_Ptr == *root &&
       (*root)->TreeSize < Multi_Thread_Rebuild_Point_Num)
-    Rebuild_Ptr = nullptr; // 重建节点是当前节点，且subtree节点数量少于多线程重建阈值
+    Rebuild_Ptr =
+        nullptr; // 重建节点是当前节点，且subtree节点数量少于多线程重建阈值
   bool need_rebuild = allow_rebuild & Criterion_Check((*root));
   if (need_rebuild)
     Rebuild(root); // 主线程重建
@@ -1066,7 +1071,8 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest,
     return;
   int retval;
   if (root->need_push_down_to_left || root->need_push_down_to_right) {
-    retval = pthread_mutex_trylock(&(root->push_down_mutex_lock)); // 返回0，表示加锁成功
+    retval = pthread_mutex_trylock(
+        &(root->push_down_mutex_lock)); // 返回0，表示加锁成功
     if (retval == 0) {
       Push_Down(root);
       pthread_mutex_unlock(&(root->push_down_mutex_lock));
@@ -1077,7 +1083,11 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest,
   }
   if (!root->point_deleted) { // 若当前节点没有被删除，则进行后续的比较
     float dist = calc_dist(point, root->point);
-    if (dist <= max_dist_sqr && (q.size() < k_nearest || dist < q.top().dist)) { // 当前节点距离查询点距离小于优先级队列中堆顶的节点到查寻点距离
+    if (dist <= max_dist_sqr &&
+        (q.size() < k_nearest ||
+         dist <
+             q.top()
+                 .dist)) { // 当前节点距离查询点距离小于优先级队列中堆顶的节点到查寻点距离
       if (q.size() >= k_nearest)
         q.pop(); // 首先将堆顶节点删除
       PointType_CMP current_point{root->point, dist};
@@ -1085,11 +1095,15 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest,
     }
   }
   int cur_search_counter;
-  float dist_left_node = calc_box_dist(root->left_son_ptr, point); // 进行递归运算point仍然为查询点
+  float dist_left_node =
+      calc_box_dist(root->left_son_ptr, point); // 进行递归运算point仍然为查询点
   float dist_right_node = calc_box_dist(root->right_son_ptr, point);
   if (q.size() < k_nearest ||
-      dist_left_node < q.top().dist && dist_right_node < q.top().dist) { // 若查询到最近邻点个数小于设定阈值；或者查询点到节点左孩子和右孩子的距离都小于堆顶节点
-    if (dist_left_node <= dist_right_node) { 
+      dist_left_node < q.top().dist &&
+          dist_right_node <
+              q.top()
+                  .dist) { // 若查询到最近邻点个数小于设定阈值；或者查询点到节点左孩子和右孩子的距离都小于堆顶节点
+    if (dist_left_node <= dist_right_node) {
       // 左子树距离查询点更近，因此首先搜索左子树
       if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != root->left_son_ptr) {
         Search(root->left_son_ptr, k_nearest, point, q, max_dist);
@@ -1272,15 +1286,24 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, PointType point,
   range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
   range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
   range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
-  float dist = sqrt(calc_dist(range_center, point)); // 计算point与当前节点的range_box中心点的距离
-  if (dist > radius + sqrt(root->radius_sq)) // 查询点的查询半径和当前节点下的subtree在空间上没有交集
+  float dist = sqrt(calc_dist(
+      range_center, point)); // 计算point与当前节点的range_box中心点的距离
+  if (dist >
+      radius +
+          sqrt(
+              root->radius_sq)) // 查询点的查询半径和当前节点下的subtree在空间上没有交集
     return;
-  if (dist <= radius - sqrt(root->radius_sq)) { // 当前节点的subtree的range范围含于查询点查询半径范围（内切于query ball）
+  if (dist <=
+      radius -
+          sqrt(
+              root->radius_sq)) { // 当前节点的subtree的range范围含于查询点查询半径范围（内切于query
+                                  // ball）
     flatten(root, Storage, NOT_RECORD);
     return;
   }
   if (!root->point_deleted &&
-      calc_dist(root->point, point) <= radius * radius) { // 计算当前节点距离查询点距离
+      calc_dist(root->point, point) <=
+          radius * radius) {        // 计算当前节点距离查询点距离
     Storage.push_back(root->point); // 当前节点在查询半径内
   }
   // 搜索左子树
@@ -1713,34 +1736,33 @@ float KD_TREE<PointType>::calc_dist(PointType a,
 }
 
 template <typename PointType>
-float KD_TREE<PointType>::calc_box_dist(
-    KD_TREE_NODE *node, PointType point) { 
+float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, PointType point) {
   // 计算当前点与节点range_box的距离
   /**
    * 1. 若point落入node的range_box，则min_dist为0
-   * 2. 计算point与range_box的最大最远点距离
+   * 2. 计算point与range_box的最近距离
    */
   if (node == nullptr)
     return INFINITY;
   float min_dist = 0.0;
   if (point.x < node->node_range_x[0])
-    min_dist +=
-        (point.x - node->node_range_x[0]) * (point.x - node->node_range_x[0]); // point.x小于range_box.min_x
+    min_dist += (point.x - node->node_range_x[0]) *
+                (point.x - node->node_range_x[0]); // point.x小于range_box.min_x
   if (point.x > node->node_range_x[1])
-    min_dist +=
-        (point.x - node->node_range_x[1]) * (point.x - node->node_range_x[1]); // point.x大于range_box.max_x
+    min_dist += (point.x - node->node_range_x[1]) *
+                (point.x - node->node_range_x[1]); // point.x大于range_box.max_x
   if (point.y < node->node_range_y[0])
-    min_dist +=
-        (point.y - node->node_range_y[0]) * (point.y - node->node_range_y[0]); // point.y小于range_box.min_y
+    min_dist += (point.y - node->node_range_y[0]) *
+                (point.y - node->node_range_y[0]); // point.y小于range_box.min_y
   if (point.y > node->node_range_y[1])
-    min_dist +=
-        (point.y - node->node_range_y[1]) * (point.y - node->node_range_y[1]); // point.y小于range_box.max_x
+    min_dist += (point.y - node->node_range_y[1]) *
+                (point.y - node->node_range_y[1]); // point.y小于range_box.max_x
   if (point.z < node->node_range_z[0])
-    min_dist +=
-        (point.z - node->node_range_z[0]) * (point.z - node->node_range_z[0]); // point.z小于range_box.min_z
+    min_dist += (point.z - node->node_range_z[0]) *
+                (point.z - node->node_range_z[0]); // point.z小于range_box.min_z
   if (point.z > node->node_range_z[1])
-    min_dist +=
-        (point.z - node->node_range_z[1]) * (point.z - node->node_range_z[1]); // point.z小于range_box.max_x
+    min_dist += (point.z - node->node_range_z[1]) *
+                (point.z - node->node_range_z[1]); // point.z小于range_box.max_x
   return min_dist;
 }
 
@@ -1793,7 +1815,7 @@ template <typename T> void MANUAL_Q<T>::push(T op) {
 template <typename T> bool MANUAL_Q<T>::empty() { return is_empty; }
 
 template <typename T> int MANUAL_Q<T>::size() { return counter; }
-
+// 显示模板实例化
 template class KD_TREE<ikdTree_PointType>;
 template class KD_TREE<pcl::PointXYZ>;
 template class KD_TREE<pcl::PointXYZI>;
