@@ -17,7 +17,6 @@
 #define ForceRebuildPercentage 0.2
 #define Q_LEN 1000000
 
-using namespace std;
 
 struct ikdTree_PointType {
   float x, y, z;
@@ -28,24 +27,15 @@ struct ikdTree_PointType {
   }
 };
 
+enum delete_point_storage_set
+{
+    NOT_RECORD,
+    DELETE_POINTS_REC,
+};
+
 struct BoxPointType {
   float vertex_min[3];
   float vertex_max[3];
-};
-
-enum operation_set {
-  ADD_POINT,
-  DELETE_POINT,
-  DELETE_BOX,
-  ADD_BOX,
-  DOWNSAMPLE_DELETE,
-  PUSH_DOWN
-};
-
-enum delete_point_storage_set {
-  NOT_RECORD,
-  DELETE_POINTS_REC,
-  MULTI_THREAD_REC
 };
 
 template <typename T>
@@ -68,8 +58,8 @@ class MANUAL_Q {
 template <typename PointType>
 class KD_TREE {
  public:
-  using PointVector = vector<PointType, Eigen::aligned_allocator<PointType>>;
-  using Ptr = shared_ptr<KD_TREE<PointType>>;
+  using PointVector = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
+  using Ptr = std::shared_ptr<KD_TREE<PointType>>;
   struct KD_TREE_NODE {
     PointType point;
     uint8_t division_axis;
@@ -92,13 +82,6 @@ class KD_TREE {
     // For paper data record
     float alpha_del;
     float alpha_bal;
-  };
-
-  struct Operation_Logger_Type {
-    PointType point;
-    BoxPointType boxpoint;
-    bool tree_deleted, tree_downsample_deleted;
-    operation_set op;
   };
 
   struct PointType_CMP {
@@ -193,11 +176,9 @@ class KD_TREE {
       working_flag_mutex, search_flag_mutex;
   pthread_mutex_t rebuild_logger_mutex_lock, points_deleted_rebuild_mutex_lock;
   // queue<Operation_Logger_Type> Rebuild_Logger;
-  MANUAL_Q<Operation_Logger_Type> Rebuild_Logger;
   PointVector Rebuild_PCL_Storage;
   KD_TREE_NODE** Rebuild_Ptr = nullptr;
   int search_mutex_counter = 0;
-  void run_operation(KD_TREE_NODE** root, Operation_Logger_Type operation);
   // KD Tree Functions and augmented variables
   int Treesize_tmp = 0, Validnum_tmp = 0;
   float alpha_bal_tmp = 0.5, alpha_del_tmp = 0.0;
@@ -212,6 +193,7 @@ class KD_TREE {
   void InitTreeNode(KD_TREE_NODE* root);
   void BuildTree(KD_TREE_NODE** root, int l, int r, PointVector& Storage);
   void Rebuild(KD_TREE_NODE** root);
+  int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
   void Delete_by_point(KD_TREE_NODE** root, PointType point,
                        bool allow_rebuild);
   void Add_by_point(KD_TREE_NODE** root, PointType point, bool allow_rebuild,
@@ -249,14 +231,13 @@ class KD_TREE {
   void Build(PointVector point_cloud);
   void Nearest_Search(PointType point, int k_nearest,
                       PointVector& Nearest_Points,
-                      vector<float>& Point_Distance,
+                      std::vector<float>& Point_Distance,
                       double max_dist = INFINITY);
   void Box_Search(const BoxPointType& Box_of_Point, PointVector& Storage);
   void Radius_Search(PointType point, const float radius, PointVector& Storage);
   int Add_Points(PointVector& PointToAdd, bool downsample_on);
   void Delete_Points(PointVector& PointToDel);
-  void flatten(KD_TREE_NODE* root, PointVector& Storage,
-               delete_point_storage_set storage_type);
+  void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
   void acquire_removed_points(PointVector& removed_points);
   BoxPointType tree_range();
   PointVector PCL_Storage;
