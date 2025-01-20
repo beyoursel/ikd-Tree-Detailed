@@ -17,10 +17,9 @@
 #define ForceRebuildPercentage 0.2
 #define Q_LEN 1000000
 
-enum DeletePointStorageSet
-{
-    NOT_RECORD,
-    DELETE_POINTS_REC,
+enum DeletePointStorageSet {
+  NOT_RECORD,
+  DELETE_POINTS_REC,
 };
 
 struct BoxPointType {
@@ -48,7 +47,8 @@ class MANUAL_Q {
 template <typename PointType>
 class KD_TREE {
  public:
-  using PointVector = std::vector<PointType, Eigen::aligned_allocator<PointType>>;
+  using PointVector =
+      std::vector<PointType, Eigen::aligned_allocator<PointType>>;
   using Ptr = std::shared_ptr<KD_TREE<PointType>>;
   struct KD_TREE_NODE {
     PointType point;
@@ -168,18 +168,18 @@ class KD_TREE {
   void InitTreeNode(KD_TREE_NODE* root);
   void BuildTree(KD_TREE_NODE** root, int l, int r, PointVector& Storage);
   void Rebuild(KD_TREE_NODE** root);
-  int DeleteByRange(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
-  void DeleteByPoint(KD_TREE_NODE** root, PointType point,
-                       bool allow_rebuild);
+  int DeleteByRange(KD_TREE_NODE** root, BoxPointType boxpoint,
+                    bool allow_rebuild, bool is_downsample);
+  void DeleteByPoint(KD_TREE_NODE** root, PointType point, bool allow_rebuild);
   void AddByPoint(KD_TREE_NODE** root, PointType point, bool allow_rebuild,
-                    int father_axis);
+                  int father_axis);
   void Search(KD_TREE_NODE* root, int k_nearest, PointType point,
               MANUAL_HEAP& q,
               double max_dist);  // priority_queue<PointType_CMP>
   void SearchByRange(KD_TREE_NODE* root, BoxPointType boxpoint,
-                       PointVector& Storage);
+                     PointVector& Storage);
   void SearchByRadius(KD_TREE_NODE* root, PointType point, float radius,
-                        PointVector& Storage);
+                      PointVector& Storage);
   bool CriterionCheck(KD_TREE_NODE* root);
   void PushDown(KD_TREE_NODE* root);
   void Update(KD_TREE_NODE* root);
@@ -205,15 +205,17 @@ class KD_TREE {
   void RootAlpha(float& alpha_bal, float& alpha_del);
   void Build(PointVector point_cloud);
   void NearestSearch(PointType point, int k_nearest,
-                      PointVector& Nearest_Points,
-                      std::vector<float>& Point_Distance,
-                      double max_dist = INFINITY);
+                     PointVector& Nearest_Points,
+                     std::vector<float>& Point_Distance,
+                     double max_dist = INFINITY);
   void BoxSearch(const BoxPointType& Box_of_Point, PointVector& Storage);
   void RadiusSearch(PointType point, const float radius, PointVector& Storage);
   int AddPoints(PointVector& PointToAdd, bool downsample_on);
   void DeletePoints(PointVector& PointToDel);
-  void Flatten(KD_TREE_NODE *root, PointVector &Storage, DeletePointStorageSet storage_type);
+  void Flatten(KD_TREE_NODE* root, PointVector& Storage,
+               DeletePointStorageSet storage_type);
   void AcquireRemovedPoints(PointVector& removed_points);
+  void Clear();
   BoxPointType TreeRange();
   PointVector pcl_storage_;
   KD_TREE_NODE* root_node_;

@@ -1,11 +1,5 @@
 #include "ikd_tree.h"
 
-/*
-Description: ikd-Tree: an incremental k-d tree for robotic applications
-Author: Yixi Cai
-email: yixicai@connect.hku.hk
-*/
-
 template <typename PointType>
 KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param,
                             float box_length) {
@@ -131,9 +125,9 @@ void KD_TREE<PointType>::Build(PointVector point_cloud) {
 
 template <typename PointType>
 void KD_TREE<PointType>::NearestSearch(PointType point, int k_nearest,
-                                        PointVector& Nearest_Points,
-                                        std::vector<float>& Point_Distance,
-                                        double max_dist) {
+                                       PointVector& Nearest_Points,
+                                       std::vector<float>& Point_Distance,
+                                       double max_dist) {
   MANUAL_HEAP q(2 * k_nearest);
   q.clear();
   std::vector<float>().swap(Point_Distance);
@@ -151,21 +145,20 @@ void KD_TREE<PointType>::NearestSearch(PointType point, int k_nearest,
 
 template <typename PointType>
 void KD_TREE<PointType>::BoxSearch(const BoxPointType& Box_of_Point,
-                                    PointVector& Storage) {
+                                   PointVector& Storage) {
   Storage.clear();
   SearchByRange(root_node_, Box_of_Point, Storage);
 }
 
 template <typename PointType>
 void KD_TREE<PointType>::RadiusSearch(PointType point, const float radius,
-                                       PointVector& Storage) {
+                                      PointVector& Storage) {
   Storage.clear();
   SearchByRadius(root_node_, point, radius, Storage);
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd,
-                                   bool downsample_on) {
+int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd, bool downsample_on) {
   int NewPointSize = PointToAdd.size();
   int tree_size = Size();
   BoxPointType Box_of_Point;
@@ -177,13 +170,16 @@ int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd,
     if (downsample_switch) {
       Box_of_Point.vertex_min[0] =
           floor(PointToAdd[i].x / downsample_size_) * downsample_size_;
-      Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size_;
+      Box_of_Point.vertex_max[0] =
+          Box_of_Point.vertex_min[0] + downsample_size_;
       Box_of_Point.vertex_min[1] =
           floor(PointToAdd[i].y / downsample_size_) * downsample_size_;
-      Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size_;
+      Box_of_Point.vertex_max[1] =
+          Box_of_Point.vertex_min[1] + downsample_size_;
       Box_of_Point.vertex_min[2] =
           floor(PointToAdd[i].z / downsample_size_) * downsample_size_;
-      Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size_;
+      Box_of_Point.vertex_max[2] =
+          Box_of_Point.vertex_min[2] + downsample_size_;
       mid_point.x =
           Box_of_Point.vertex_min[0] +
           (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0]) / 2.0;
@@ -209,7 +205,7 @@ int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd,
         if (downsample_storage_.size() > 0)
           DeleteByRange(&root_node_, Box_of_Point, true, true);
         AddByPoint(&root_node_, downsample_result, true,
-                     root_node_->division_axis);
+                   root_node_->division_axis);
         tmp_counter++;
       }
     } else {
@@ -220,53 +216,62 @@ int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd,
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::DeleteByRange(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample)
-{
-    if ((*root) == nullptr || (*root)->tree_deleted)
-        return 0;
-    (*root)->working_flag = true;
-    PushDown(*root);
-    int tmp_counter = 0;
-    if (boxpoint.vertex_max[0] <= (*root)->node_range_x[0] || boxpoint.vertex_min[0] > (*root)->node_range_x[1])
-        return 0;
-    if (boxpoint.vertex_max[1] <= (*root)->node_range_y[0] || boxpoint.vertex_min[1] > (*root)->node_range_y[1])
-        return 0;
-    if (boxpoint.vertex_max[2] <= (*root)->node_range_z[0] || boxpoint.vertex_min[2] > (*root)->node_range_z[1])
-        return 0;
-    if (boxpoint.vertex_min[0] <= (*root)->node_range_x[0] && boxpoint.vertex_max[0] > (*root)->node_range_x[1] && boxpoint.vertex_min[1] <= (*root)->node_range_y[0] && boxpoint.vertex_max[1] > (*root)->node_range_y[1] && boxpoint.vertex_min[2] <= (*root)->node_range_z[0] && boxpoint.vertex_max[2] > (*root)->node_range_z[1])
-    {
-        (*root)->tree_deleted = true;
-        (*root)->point_deleted = true;
-        (*root)->need_push_down_to_left = true;
-        (*root)->need_push_down_to_right = true;
-        tmp_counter = (*root)->tree_size - (*root)->invalid_point_num;
-        (*root)->invalid_point_num = (*root)->tree_size;
-        if (is_downsample)
-        {
-            (*root)->tree_downsample_deleted = true;
-            (*root)->point_downsample_deleted = true;
-            (*root)->down_del_num = (*root)->tree_size;
-        }
-        return tmp_counter;
+int KD_TREE<PointType>::DeleteByRange(KD_TREE_NODE** root,
+                                      BoxPointType boxpoint, bool allow_rebuild,
+                                      bool is_downsample) {
+  if ((*root) == nullptr || (*root)->tree_deleted) return 0;
+  (*root)->working_flag = true;
+  PushDown(*root);
+  int tmp_counter = 0;
+  if (boxpoint.vertex_max[0] <= (*root)->node_range_x[0] ||
+      boxpoint.vertex_min[0] > (*root)->node_range_x[1])
+    return 0;
+  if (boxpoint.vertex_max[1] <= (*root)->node_range_y[0] ||
+      boxpoint.vertex_min[1] > (*root)->node_range_y[1])
+    return 0;
+  if (boxpoint.vertex_max[2] <= (*root)->node_range_z[0] ||
+      boxpoint.vertex_min[2] > (*root)->node_range_z[1])
+    return 0;
+  if (boxpoint.vertex_min[0] <= (*root)->node_range_x[0] &&
+      boxpoint.vertex_max[0] > (*root)->node_range_x[1] &&
+      boxpoint.vertex_min[1] <= (*root)->node_range_y[0] &&
+      boxpoint.vertex_max[1] > (*root)->node_range_y[1] &&
+      boxpoint.vertex_min[2] <= (*root)->node_range_z[0] &&
+      boxpoint.vertex_max[2] > (*root)->node_range_z[1]) {
+    (*root)->tree_deleted = true;
+    (*root)->point_deleted = true;
+    (*root)->need_push_down_to_left = true;
+    (*root)->need_push_down_to_right = true;
+    tmp_counter = (*root)->tree_size - (*root)->invalid_point_num;
+    (*root)->invalid_point_num = (*root)->tree_size;
+    if (is_downsample) {
+      (*root)->tree_downsample_deleted = true;
+      (*root)->point_downsample_deleted = true;
+      (*root)->down_del_num = (*root)->tree_size;
     }
-    if (!(*root)->point_deleted && boxpoint.vertex_min[0] <= (*root)->point.x && boxpoint.vertex_max[0] > (*root)->point.x && boxpoint.vertex_min[1] <= (*root)->point.y && boxpoint.vertex_max[1] > (*root)->point.y && boxpoint.vertex_min[2] <= (*root)->point.z && boxpoint.vertex_max[2] > (*root)->point.z)
-    {
-        (*root)->point_deleted = true;
-        tmp_counter += 1;
-        if (is_downsample)
-            (*root)->point_downsample_deleted = true;
-    }
-
-    tmp_counter += DeleteByRange(&((*root)->left_son_ptr), boxpoint, allow_rebuild, is_downsample);
-    tmp_counter += DeleteByRange(&((*root)->right_son_ptr), boxpoint, allow_rebuild, is_downsample);
-
-    Update(*root);
-    bool need_rebuild = allow_rebuild & CriterionCheck((*root));
-    if (need_rebuild)
-        Rebuild(root);
-    if ((*root) != nullptr)
-        (*root)->working_flag = false;
     return tmp_counter;
+  }
+  if (!(*root)->point_deleted && boxpoint.vertex_min[0] <= (*root)->point.x &&
+      boxpoint.vertex_max[0] > (*root)->point.x &&
+      boxpoint.vertex_min[1] <= (*root)->point.y &&
+      boxpoint.vertex_max[1] > (*root)->point.y &&
+      boxpoint.vertex_min[2] <= (*root)->point.z &&
+      boxpoint.vertex_max[2] > (*root)->point.z) {
+    (*root)->point_deleted = true;
+    tmp_counter += 1;
+    if (is_downsample) (*root)->point_downsample_deleted = true;
+  }
+
+  tmp_counter += DeleteByRange(&((*root)->left_son_ptr), boxpoint,
+                               allow_rebuild, is_downsample);
+  tmp_counter += DeleteByRange(&((*root)->right_son_ptr), boxpoint,
+                               allow_rebuild, is_downsample);
+
+  Update(*root);
+  bool need_rebuild = allow_rebuild & CriterionCheck((*root));
+  if (need_rebuild) Rebuild(root);
+  if ((*root) != nullptr) (*root)->working_flag = false;
+  return tmp_counter;
 }
 
 template <typename PointType>
@@ -284,6 +289,11 @@ void KD_TREE<PointType>::AcquireRemovedPoints(PointVector& removed_points) {
   }
   points_deleted_.clear();
   return;
+}
+
+void KD_TREE<PointType>::Clear() {
+  DeleteTreeNodes(&root_node_);
+  PointVector().swap(pcl_storage_);
 }
 
 template <typename PointType>
@@ -317,19 +327,19 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE** root, int l, int r,
   switch (div_axis) {
     case 0:
       std::nth_element(begin(Storage) + l, begin(Storage) + mid,
-                  begin(Storage) + r + 1, PointCmpX);
+                       begin(Storage) + r + 1, PointCmpX);
       break;
     case 1:
       std::nth_element(begin(Storage) + l, begin(Storage) + mid,
-                  begin(Storage) + r + 1, PointCmpY);
+                       begin(Storage) + r + 1, PointCmpY);
       break;
     case 2:
       std::nth_element(begin(Storage) + l, begin(Storage) + mid,
-                  begin(Storage) + r + 1, PointCmpZ);
+                       begin(Storage) + r + 1, PointCmpZ);
       break;
     default:
       std::nth_element(begin(Storage) + l, begin(Storage) + mid,
-                  begin(Storage) + r + 1, PointCmpX);
+                       begin(Storage) + r + 1, PointCmpX);
       break;
   }
   (*root)->point = Storage[mid];
@@ -358,7 +368,7 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE** root) {
 
 template <typename PointType>
 void KD_TREE<PointType>::DeleteByPoint(KD_TREE_NODE** root, PointType point,
-                                         bool allow_rebuild) {
+                                       bool allow_rebuild) {
   if ((*root) == nullptr || (*root)->tree_deleted) return;
   (*root)->working_flag = true;
   PushDown(*root);
@@ -386,7 +396,7 @@ void KD_TREE<PointType>::DeleteByPoint(KD_TREE_NODE** root, PointType point,
 
 template <typename PointType>
 void KD_TREE<PointType>::AddByPoint(KD_TREE_NODE** root, PointType point,
-                                      bool allow_rebuild, int father_axis) {
+                                    bool allow_rebuild, int father_axis) {
   if (*root == nullptr) {
     *root = new KD_TREE_NODE;
     InitTreeNode(*root);
@@ -401,10 +411,10 @@ void KD_TREE<PointType>::AddByPoint(KD_TREE_NODE** root, PointType point,
       ((*root)->division_axis == 1 && point.y < (*root)->point.y) ||
       ((*root)->division_axis == 2 && point.z < (*root)->point.z)) {
     AddByPoint(&(*root)->left_son_ptr, point, allow_rebuild,
-                 (*root)->division_axis);
+               (*root)->division_axis);
   } else {
     AddByPoint(&(*root)->right_son_ptr, point, allow_rebuild,
-                 (*root)->division_axis);
+               (*root)->division_axis);
   }
   Update(*root);
   bool need_rebuild = allow_rebuild & CriterionCheck((*root));
@@ -469,8 +479,8 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE* root, int k_nearest,
 
 template <typename PointType>
 void KD_TREE<PointType>::SearchByRange(KD_TREE_NODE* root,
-                                         BoxPointType boxpoint,
-                                         PointVector& Storage) {
+                                       BoxPointType boxpoint,
+                                       PointVector& Storage) {
   if (root == nullptr) return;
   PushDown(root);
   if (boxpoint.vertex_max[0] <= root->node_range_x[0] ||
@@ -506,7 +516,7 @@ void KD_TREE<PointType>::SearchByRange(KD_TREE_NODE* root,
 
 template <typename PointType>
 void KD_TREE<PointType>::SearchByRadius(KD_TREE_NODE* root, PointType point,
-                                          float radius, PointVector& Storage) {
+                                        float radius, PointVector& Storage) {
   if (root == nullptr) return;
   PushDown(root);
   PointType range_center;
@@ -519,8 +529,7 @@ void KD_TREE<PointType>::SearchByRadius(KD_TREE_NODE* root, PointType point,
     Flatten(root, Storage, NOT_RECORD);
     return;
   }
-  if (!root->point_deleted &&
-      CalcDist(root->point, point) <= radius * radius) {
+  if (!root->point_deleted && CalcDist(root->point, point) <= radius * radius) {
     Storage.push_back(root->point);
   }
   SearchByRadius(root->left_son_ptr, point, radius, Storage);
@@ -620,40 +629,52 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
     if (root->tree_deleted ||
         (!left_son_ptr->tree_deleted && !right_son_ptr->tree_deleted &&
          !root->point_deleted)) {
-      tmp_range_x[0] = std::min(
-          std::min(left_son_ptr->node_range_x[0], right_son_ptr->node_range_x[0]),
-          root->point.x);
-      tmp_range_x[1] = std::max(
-          std::max(left_son_ptr->node_range_x[1], right_son_ptr->node_range_x[1]),
-          root->point.x);
-      tmp_range_y[0] = std::min(
-          std::min(left_son_ptr->node_range_y[0], right_son_ptr->node_range_y[0]),
-          root->point.y);
-      tmp_range_y[1] = std::max(
-          std::max(left_son_ptr->node_range_y[1], right_son_ptr->node_range_y[1]),
-          root->point.y);
-      tmp_range_z[0] = std::min(
-          std::min(left_son_ptr->node_range_z[0], right_son_ptr->node_range_z[0]),
-          root->point.z);
-      tmp_range_z[1] = std::max(
-          std::max(left_son_ptr->node_range_z[1], right_son_ptr->node_range_z[1]),
-          root->point.z);
+      tmp_range_x[0] = std::min(std::min(left_son_ptr->node_range_x[0],
+                                         right_son_ptr->node_range_x[0]),
+                                root->point.x);
+      tmp_range_x[1] = std::max(std::max(left_son_ptr->node_range_x[1],
+                                         right_son_ptr->node_range_x[1]),
+                                root->point.x);
+      tmp_range_y[0] = std::min(std::min(left_son_ptr->node_range_y[0],
+                                         right_son_ptr->node_range_y[0]),
+                                root->point.y);
+      tmp_range_y[1] = std::max(std::max(left_son_ptr->node_range_y[1],
+                                         right_son_ptr->node_range_y[1]),
+                                root->point.y);
+      tmp_range_z[0] = std::min(std::min(left_son_ptr->node_range_z[0],
+                                         right_son_ptr->node_range_z[0]),
+                                root->point.z);
+      tmp_range_z[1] = std::max(std::max(left_son_ptr->node_range_z[1],
+                                         right_son_ptr->node_range_z[1]),
+                                root->point.z);
     } else {
       if (!left_son_ptr->tree_deleted) {
-        tmp_range_x[0] = std::min(tmp_range_x[0], left_son_ptr->node_range_x[0]);
-        tmp_range_x[1] = std::max(tmp_range_x[1], left_son_ptr->node_range_x[1]);
-        tmp_range_y[0] = std::min(tmp_range_y[0], left_son_ptr->node_range_y[0]);
-        tmp_range_y[1] = std::max(tmp_range_y[1], left_son_ptr->node_range_y[1]);
-        tmp_range_z[0] = std::min(tmp_range_z[0], left_son_ptr->node_range_z[0]);
-        tmp_range_z[1] = std::max(tmp_range_z[1], left_son_ptr->node_range_z[1]);
+        tmp_range_x[0] =
+            std::min(tmp_range_x[0], left_son_ptr->node_range_x[0]);
+        tmp_range_x[1] =
+            std::max(tmp_range_x[1], left_son_ptr->node_range_x[1]);
+        tmp_range_y[0] =
+            std::min(tmp_range_y[0], left_son_ptr->node_range_y[0]);
+        tmp_range_y[1] =
+            std::max(tmp_range_y[1], left_son_ptr->node_range_y[1]);
+        tmp_range_z[0] =
+            std::min(tmp_range_z[0], left_son_ptr->node_range_z[0]);
+        tmp_range_z[1] =
+            std::max(tmp_range_z[1], left_son_ptr->node_range_z[1]);
       }
       if (!right_son_ptr->tree_deleted) {
-        tmp_range_x[0] = std::min(tmp_range_x[0], right_son_ptr->node_range_x[0]);
-        tmp_range_x[1] = std::max(tmp_range_x[1], right_son_ptr->node_range_x[1]);
-        tmp_range_y[0] = std::min(tmp_range_y[0], right_son_ptr->node_range_y[0]);
-        tmp_range_y[1] = std::max(tmp_range_y[1], right_son_ptr->node_range_y[1]);
-        tmp_range_z[0] = std::min(tmp_range_z[0], right_son_ptr->node_range_z[0]);
-        tmp_range_z[1] = std::max(tmp_range_z[1], right_son_ptr->node_range_z[1]);
+        tmp_range_x[0] =
+            std::min(tmp_range_x[0], right_son_ptr->node_range_x[0]);
+        tmp_range_x[1] =
+            std::max(tmp_range_x[1], right_son_ptr->node_range_x[1]);
+        tmp_range_y[0] =
+            std::min(tmp_range_y[0], right_son_ptr->node_range_y[0]);
+        tmp_range_y[1] =
+            std::max(tmp_range_y[1], right_son_ptr->node_range_y[1]);
+        tmp_range_z[0] =
+            std::min(tmp_range_z[0], right_son_ptr->node_range_z[0]);
+        tmp_range_z[1] =
+            std::max(tmp_range_z[1], right_son_ptr->node_range_z[1]);
       }
       if (!root->point_deleted) {
         tmp_range_x[0] = std::min(tmp_range_x[0], root->point.x);
@@ -683,12 +704,18 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
       tmp_range_z[1] = std::max(left_son_ptr->node_range_z[1], root->point.z);
     } else {
       if (!left_son_ptr->tree_deleted) {
-        tmp_range_x[0] = std::min(tmp_range_x[0], left_son_ptr->node_range_x[0]);
-        tmp_range_x[1] = std::max(tmp_range_x[1], left_son_ptr->node_range_x[1]);
-        tmp_range_y[0] = std::min(tmp_range_y[0], left_son_ptr->node_range_y[0]);
-        tmp_range_y[1] = std::max(tmp_range_y[1], left_son_ptr->node_range_y[1]);
-        tmp_range_z[0] = std::min(tmp_range_z[0], left_son_ptr->node_range_z[0]);
-        tmp_range_z[1] = std::max(tmp_range_z[1], left_son_ptr->node_range_z[1]);
+        tmp_range_x[0] =
+            std::min(tmp_range_x[0], left_son_ptr->node_range_x[0]);
+        tmp_range_x[1] =
+            std::max(tmp_range_x[1], left_son_ptr->node_range_x[1]);
+        tmp_range_y[0] =
+            std::min(tmp_range_y[0], left_son_ptr->node_range_y[0]);
+        tmp_range_y[1] =
+            std::max(tmp_range_y[1], left_son_ptr->node_range_y[1]);
+        tmp_range_z[0] =
+            std::min(tmp_range_z[0], left_son_ptr->node_range_z[0]);
+        tmp_range_z[1] =
+            std::max(tmp_range_z[1], left_son_ptr->node_range_z[1]);
       }
       if (!root->point_deleted) {
         tmp_range_x[0] = std::min(tmp_range_x[0], root->point.x);
@@ -719,12 +746,18 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
       tmp_range_z[1] = std::max(right_son_ptr->node_range_z[1], root->point.z);
     } else {
       if (!right_son_ptr->tree_deleted) {
-        tmp_range_x[0] = std::min(tmp_range_x[0], right_son_ptr->node_range_x[0]);
-        tmp_range_x[1] = std::max(tmp_range_x[1], right_son_ptr->node_range_x[1]);
-        tmp_range_y[0] = std::min(tmp_range_y[0], right_son_ptr->node_range_y[0]);
-        tmp_range_y[1] = std::max(tmp_range_y[1], right_son_ptr->node_range_y[1]);
-        tmp_range_z[0] = std::min(tmp_range_z[0], right_son_ptr->node_range_z[0]);
-        tmp_range_z[1] = std::max(tmp_range_z[1], right_son_ptr->node_range_z[1]);
+        tmp_range_x[0] =
+            std::min(tmp_range_x[0], right_son_ptr->node_range_x[0]);
+        tmp_range_x[1] =
+            std::max(tmp_range_x[1], right_son_ptr->node_range_x[1]);
+        tmp_range_y[0] =
+            std::min(tmp_range_y[0], right_son_ptr->node_range_y[0]);
+        tmp_range_y[1] =
+            std::max(tmp_range_y[1], right_son_ptr->node_range_y[1]);
+        tmp_range_z[0] =
+            std::min(tmp_range_z[0], right_son_ptr->node_range_z[0]);
+        tmp_range_z[1] =
+            std::max(tmp_range_z[1], right_son_ptr->node_range_z[1]);
       }
       if (!root->point_deleted) {
         tmp_range_x[0] = std::min(tmp_range_x[0], root->point.x);
@@ -768,31 +801,27 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Flatten(KD_TREE_NODE *root, PointVector &Storage, DeletePointStorageSet storage_type)
-{
-    if (root == nullptr)
-        return;
-    PushDown(root);
-    if (!root->point_deleted)
-    {
-        Storage.push_back(root->point);
-    }
-    Flatten(root->left_son_ptr, Storage, storage_type);
-    Flatten(root->right_son_ptr, Storage, storage_type);
-    switch (storage_type)
-    {
+void KD_TREE<PointType>::Flatten(KD_TREE_NODE* root, PointVector& Storage,
+                                 DeletePointStorageSet storage_type) {
+  if (root == nullptr) return;
+  PushDown(root);
+  if (!root->point_deleted) {
+    Storage.push_back(root->point);
+  }
+  Flatten(root->left_son_ptr, Storage, storage_type);
+  Flatten(root->right_son_ptr, Storage, storage_type);
+  switch (storage_type) {
     case NOT_RECORD:
-        break;
+      break;
     case DELETE_POINTS_REC:
-        if (root->point_deleted && !root->point_downsample_deleted)
-        {
-            points_deleted_.push_back(root->point);
-        }
-        break;
+      if (root->point_deleted && !root->point_downsample_deleted) {
+        points_deleted_.push_back(root->point);
+      }
+      break;
     default:
-        break;
-    }
-    return;
+      break;
+  }
+  return;
 }
 
 template <typename PointType>
