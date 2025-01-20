@@ -17,17 +17,7 @@
 #define ForceRebuildPercentage 0.2
 #define Q_LEN 1000000
 
-
-struct ikdTree_PointType {
-  float x, y, z;
-  ikdTree_PointType(float px = 0.0f, float py = 0.0f, float pz = 0.0f) {
-    x = px;
-    y = py;
-    z = pz;
-  }
-};
-
-enum delete_point_storage_set
+enum DeletePointStorageSet
 {
     NOT_RECORD,
     DELETE_POINTS_REC,
@@ -63,7 +53,7 @@ class KD_TREE {
   struct KD_TREE_NODE {
     PointType point;
     uint8_t division_axis;
-    int TreeSize = 1;
+    int tree_size = 1;
     int invalid_point_num = 0;
     int down_del_num = 0;
     bool point_deleted = false;
@@ -168,79 +158,63 @@ class KD_TREE {
   };
 
  private:
-  // Multi-thread Tree Rebuild
-  bool termination_flag = false;
-  bool rebuild_flag = false;
-  pthread_t rebuild_thread;
-  pthread_mutex_t termination_flag_mutex_lock, rebuild_ptr_mutex_lock,
-      working_flag_mutex, search_flag_mutex;
-  pthread_mutex_t rebuild_logger_mutex_lock, points_deleted_rebuild_mutex_lock;
-  // queue<Operation_Logger_Type> Rebuild_Logger;
-  PointVector Rebuild_PCL_Storage;
-  KD_TREE_NODE** Rebuild_Ptr = nullptr;
-  int search_mutex_counter = 0;
   // KD Tree Functions and augmented variables
-  int Treesize_tmp = 0, Validnum_tmp = 0;
-  float alpha_bal_tmp = 0.5, alpha_del_tmp = 0.0;
-  float delete_criterion_param = 0.5f;
-  float balance_criterion_param = 0.7f;
-  float downsample_size = 0.2f;
-  bool Delete_Storage_Disabled = false;
-  KD_TREE_NODE* STATIC_ROOT_NODE = nullptr;
-  PointVector Points_deleted;
-  PointVector Downsample_Storage;
-  PointVector Multithread_Points_deleted;
+  float delete_criterion_param_;
+  float balance_criterion_param_;
+  float downsample_size_;
+  KD_TREE_NODE* static_root_node_;
+  PointVector points_deleted_;
+  PointVector downsample_storage_;
   void InitTreeNode(KD_TREE_NODE* root);
   void BuildTree(KD_TREE_NODE** root, int l, int r, PointVector& Storage);
   void Rebuild(KD_TREE_NODE** root);
-  int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
-  void Delete_by_point(KD_TREE_NODE** root, PointType point,
+  int DeleteByRange(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
+  void DeleteByPoint(KD_TREE_NODE** root, PointType point,
                        bool allow_rebuild);
-  void Add_by_point(KD_TREE_NODE** root, PointType point, bool allow_rebuild,
+  void AddByPoint(KD_TREE_NODE** root, PointType point, bool allow_rebuild,
                     int father_axis);
   void Search(KD_TREE_NODE* root, int k_nearest, PointType point,
               MANUAL_HEAP& q,
               double max_dist);  // priority_queue<PointType_CMP>
-  void Search_by_range(KD_TREE_NODE* root, BoxPointType boxpoint,
+  void SearchByRange(KD_TREE_NODE* root, BoxPointType boxpoint,
                        PointVector& Storage);
-  void Search_by_radius(KD_TREE_NODE* root, PointType point, float radius,
+  void SearchByRadius(KD_TREE_NODE* root, PointType point, float radius,
                         PointVector& Storage);
-  bool Criterion_Check(KD_TREE_NODE* root);
-  void Push_Down(KD_TREE_NODE* root);
+  bool CriterionCheck(KD_TREE_NODE* root);
+  void PushDown(KD_TREE_NODE* root);
   void Update(KD_TREE_NODE* root);
-  void delete_tree_nodes(KD_TREE_NODE** root);
-  bool same_point(PointType a, PointType b);
-  float calc_dist(PointType a, PointType b);
-  float calc_box_dist(KD_TREE_NODE* node, PointType point);
-  static bool point_cmp_x(PointType a, PointType b);
-  static bool point_cmp_y(PointType a, PointType b);
-  static bool point_cmp_z(PointType a, PointType b);
+  void DeleteTreeNodes(KD_TREE_NODE** root);
+  bool SamePoint(PointType a, PointType b);
+  float CalcDist(PointType a, PointType b);
+  float CalcBoxDist(KD_TREE_NODE* node, PointType point);
+  static bool PointCmpX(PointType a, PointType b);
+  static bool PointCmpY(PointType a, PointType b);
+  static bool PointCmpZ(PointType a, PointType b);
 
  public:
   KD_TREE(float delete_param = 0.5, float balance_param = 0.6,
           float box_length = 0.2);
   ~KD_TREE();
-  void Set_delete_criterion_param(float delete_param);
-  void Set_balance_criterion_param(float balance_param);
-  void set_downsample_param(float box_length);
+  void SetDeleteCriterionParam(float delete_param);
+  void SetBalanceCriterionParam(float balance_param);
+  void SetDownsampleParam(float box_length);
   void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7,
                         float box_length = 0.2);
-  int size();
-  int validnum();
-  void root_alpha(float& alpha_bal, float& alpha_del);
+  int Size();
+  int ValidNum();
+  void RootAlpha(float& alpha_bal, float& alpha_del);
   void Build(PointVector point_cloud);
-  void Nearest_Search(PointType point, int k_nearest,
+  void NearestSearch(PointType point, int k_nearest,
                       PointVector& Nearest_Points,
                       std::vector<float>& Point_Distance,
                       double max_dist = INFINITY);
-  void Box_Search(const BoxPointType& Box_of_Point, PointVector& Storage);
-  void Radius_Search(PointType point, const float radius, PointVector& Storage);
-  int Add_Points(PointVector& PointToAdd, bool downsample_on);
-  void Delete_Points(PointVector& PointToDel);
-  void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
-  void acquire_removed_points(PointVector& removed_points);
-  BoxPointType tree_range();
-  PointVector PCL_Storage;
-  KD_TREE_NODE* Root_Node = nullptr;
-  int max_queue_size = 0;
+  void BoxSearch(const BoxPointType& Box_of_Point, PointVector& Storage);
+  void RadiusSearch(PointType point, const float radius, PointVector& Storage);
+  int AddPoints(PointVector& PointToAdd, bool downsample_on);
+  void DeletePoints(PointVector& PointToDel);
+  void Flatten(KD_TREE_NODE *root, PointVector &Storage, DeletePointStorageSet storage_type);
+  void AcquireRemovedPoints(PointVector& removed_points);
+  BoxPointType TreeRange();
+  PointVector pcl_storage_;
+  KD_TREE_NODE* root_node_;
 };

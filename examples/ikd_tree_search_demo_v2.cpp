@@ -2,7 +2,7 @@
     Description: An example to introduce box search and radius search using ikd-Tree
     Author: Hyungtae Lim, Yixi Cai
 */
-#include "ikd_Tree.h"
+#include "ikd_tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <random>
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     printf("Building tree takes: %0.3f ms\n", float(duration) / 1e3);
-    printf("# of valid points: %d \n", ikd_tree->validnum());
+    printf("# of valid points: %d \n", ikd_tree->ValidNum());
 
     /*** 4. Set a box region and search using box search */
     PointType center_pt;
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 
     start = std::chrono::high_resolution_clock::now();
     PointVector search_points;
-    ikd_tree->Box_Search(boxpoint, search_points);
+    ikd_tree->BoxSearch(boxpoint, search_points);
     end  = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     printf("Search Points by box takes: %0.3f ms with %d points\n", float(duration) / 1e3, static_cast<int>(search_points.size()));
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     float radius = 7.5;
     start = std::chrono::high_resolution_clock::now();
     PointVector search_points_radius;
-    ikd_tree->Radius_Search(ball_center_pt, radius, search_points_radius);
+    ikd_tree->RadiusSearch(ball_center_pt, radius, search_points_radius);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
     printf("Search Points by radius takes: %0.3f ms with %d points\n", float(duration) / 1e3, int(search_points_radius.size()));

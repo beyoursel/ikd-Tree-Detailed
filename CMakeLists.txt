@@ -21,5 +21,5 @@ include_directories(
 # add_executable(ikd_tree_Search_demo examples/ikd_Tree_Search_demo.cpp ikd-Tree/ikd_Tree.cpp)
 # target_link_libraries(ikd_tree_Search_demo ${PCL_LIBRARIES})
 
-add_executable(ikd_tree_search_demo_v2 examples/ikd_tree_search_demo_v2.cpp ikd-Tree/ikd_Tree.cpp)
+add_executable(ikd_tree_search_demo_v2 examples/ikd_tree_search_demo_v2.cpp ikd-Tree/ikd_tree.cpp)
 target_link_libraries(ikd_tree_search_demo_v2 ${PCL_LIBRARIES})
