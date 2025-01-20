@@ -1,7 +1,7 @@
 #include "ikd_tree.h"
 
-template <typename PointType>
-KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param,
+template <typename PointT>
+KD_TREE<PointT>::KD_TREE(float delete_param, float balance_param,
                             float box_length) {
   delete_criterion_param_ = delete_param;
   balance_criterion_param_ = balance_param;
@@ -10,29 +10,29 @@ KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param,
   static_root_node_ = nullptr;
 }
 
-template <typename PointType>
-KD_TREE<PointType>::~KD_TREE() {
+template <typename PointT>
+KD_TREE<PointT>::~KD_TREE() {
   DeleteTreeNodes(&root_node_);
   PointVector().swap(pcl_storage_);
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::SetDeleteCriterionParam(float delete_param) {
+template <typename PointT>
+void KD_TREE<PointT>::SetDeleteCriterionParam(float delete_param) {
   delete_criterion_param_ = delete_param;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::SetBalanceCriterionParam(float balance_param) {
+template <typename PointT>
+void KD_TREE<PointT>::SetBalanceCriterionParam(float balance_param) {
   balance_criterion_param_ = balance_param;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::SetDownsampleParam(float downsample_param) {
+template <typename PointT>
+void KD_TREE<PointT>::SetDownsampleParam(float downsample_param) {
   downsample_size_ = downsample_param;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::InitializeKDTree(float delete_param,
+template <typename PointT>
+void KD_TREE<PointT>::InitializeKDTree(float delete_param,
                                           float balance_param,
                                           float box_length) {
   SetDeleteCriterionParam(delete_param);
@@ -40,8 +40,8 @@ void KD_TREE<PointType>::InitializeKDTree(float delete_param,
   SetDownsampleParam(box_length);
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE* root) {
+template <typename PointT>
+void KD_TREE<PointT>::InitTreeNode(KD_TREE_NODE* root) {
   root->point.x = 0.0f;
   root->point.y = 0.0f;
   root->point.z = 0.0f;
@@ -67,8 +67,8 @@ void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE* root) {
   pthread_mutex_init(&(root->push_down_mutex_lock), NULL);
 }
 
-template <typename PointType>
-int KD_TREE<PointType>::Size() {
+template <typename PointT>
+int KD_TREE<PointT>::Size() {
   int s = 0;
   if (root_node_ != nullptr) {
     return root_node_->tree_size;
@@ -77,8 +77,8 @@ int KD_TREE<PointType>::Size() {
   }
 }
 
-template <typename PointType>
-BoxPointType KD_TREE<PointType>::TreeRange() {
+template <typename PointT>
+BoxPointType KD_TREE<PointT>::TreeRange() {
   BoxPointType range;
   if (root_node_ != nullptr) {
     range.vertex_min[0] = root_node_->node_range_x[0];
@@ -93,8 +93,8 @@ BoxPointType KD_TREE<PointType>::TreeRange() {
   return range;
 }
 
-template <typename PointType>
-int KD_TREE<PointType>::ValidNum() {
+template <typename PointT>
+int KD_TREE<PointT>::ValidNum() {
   int s = 0;
   if (root_node_ != nullptr)
     return (root_node_->tree_size - root_node_->invalid_point_num);
@@ -102,14 +102,14 @@ int KD_TREE<PointType>::ValidNum() {
     return 0;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::RootAlpha(float& alpha_bal, float& alpha_del) {
+template <typename PointT>
+void KD_TREE<PointT>::RootAlpha(float& alpha_bal, float& alpha_del) {
   alpha_bal = root_node_->alpha_bal;
   alpha_del = root_node_->alpha_del;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Build(PointVector point_cloud) {
+template <typename PointT>
+void KD_TREE<PointT>::Build(PointVector point_cloud) {
   if (root_node_ != nullptr) {
     DeleteTreeNodes(&root_node_);
   }
@@ -123,8 +123,8 @@ void KD_TREE<PointType>::Build(PointVector point_cloud) {
   root_node_ = static_root_node_->left_son_ptr;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::NearestSearch(PointType point, int k_nearest,
+template <typename PointT>
+void KD_TREE<PointT>::NearestSearch(PointT point, int k_nearest,
                                        PointVector& Nearest_Points,
                                        std::vector<float>& Point_Distance,
                                        double max_dist) {
@@ -143,26 +143,26 @@ void KD_TREE<PointType>::NearestSearch(PointType point, int k_nearest,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::BoxSearch(const BoxPointType& Box_of_Point,
+template <typename PointT>
+void KD_TREE<PointT>::BoxSearch(const BoxPointType& Box_of_Point,
                                    PointVector& Storage) {
   Storage.clear();
   SearchByRange(root_node_, Box_of_Point, Storage);
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::RadiusSearch(PointType point, const float radius,
+template <typename PointT>
+void KD_TREE<PointT>::RadiusSearch(PointT point, const float radius,
                                       PointVector& Storage) {
   Storage.clear();
   SearchByRadius(root_node_, point, radius, Storage);
 }
 
-template <typename PointType>
-int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd, bool downsample_on) {
+template <typename PointT>
+int KD_TREE<PointT>::AddPoints(PointVector& PointToAdd, bool downsample_on) {
   int NewPointSize = PointToAdd.size();
   int tree_size = Size();
   BoxPointType Box_of_Point;
-  PointType downsample_result, mid_point;
+  PointT downsample_result, mid_point;
   bool downsample_switch = downsample_on && DOWNSAMPLE_SWITCH;
   float min_dist, tmp_dist;
   int tmp_counter = 0;
@@ -215,8 +215,8 @@ int KD_TREE<PointType>::AddPoints(PointVector& PointToAdd, bool downsample_on) {
   return tmp_counter;
 }
 
-template <typename PointType>
-int KD_TREE<PointType>::DeleteByRange(KD_TREE_NODE** root,
+template <typename PointT>
+int KD_TREE<PointT>::DeleteByRange(KD_TREE_NODE** root,
                                       BoxPointType boxpoint, bool allow_rebuild,
                                       bool is_downsample) {
   if ((*root) == nullptr || (*root)->tree_deleted) return 0;
@@ -274,16 +274,16 @@ int KD_TREE<PointType>::DeleteByRange(KD_TREE_NODE** root,
   return tmp_counter;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::DeletePoints(PointVector& PointToDel) {
+template <typename PointT>
+void KD_TREE<PointT>::DeletePoints(PointVector& PointToDel) {
   for (int i = 0; i < PointToDel.size(); i++) {
     DeleteByPoint(&root_node_, PointToDel[i], true);
   }
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::AcquireRemovedPoints(PointVector& removed_points) {
+template <typename PointT>
+void KD_TREE<PointT>::AcquireRemovedPoints(PointVector& removed_points) {
   for (int i = 0; i < points_deleted_.size(); i++) {
     removed_points.push_back(points_deleted_[i]);
   }
@@ -291,13 +291,19 @@ void KD_TREE<PointType>::AcquireRemovedPoints(PointVector& removed_points) {
   return;
 }
 
-void KD_TREE<PointType>::Clear() {
+template <typename PointT>
+void KD_TREE<PointT>::AcquireTreePoints(PointVector& tree_points) {
+  Flatten(root_node_, tree_points, NOT_RECORD);
+}
+
+template <typename PointT>
+void KD_TREE<PointT>::Clear() {
   DeleteTreeNodes(&root_node_);
   PointVector().swap(pcl_storage_);
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::BuildTree(KD_TREE_NODE** root, int l, int r,
+template <typename PointT>
+void KD_TREE<PointT>::BuildTree(KD_TREE_NODE** root, int l, int r,
                                    PointVector& Storage) {
   if (l > r) return;
   *root = new KD_TREE_NODE;
@@ -352,8 +358,8 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE** root, int l, int r,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Rebuild(KD_TREE_NODE** root) {
+template <typename PointT>
+void KD_TREE<PointT>::Rebuild(KD_TREE_NODE** root) {
   KD_TREE_NODE* father_ptr;
   father_ptr = (*root)->father_ptr;
   int size_rec = (*root)->tree_size;
@@ -366,8 +372,8 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE** root) {
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::DeleteByPoint(KD_TREE_NODE** root, PointType point,
+template <typename PointT>
+void KD_TREE<PointT>::DeleteByPoint(KD_TREE_NODE** root, PointT point,
                                        bool allow_rebuild) {
   if ((*root) == nullptr || (*root)->tree_deleted) return;
   (*root)->working_flag = true;
@@ -394,8 +400,8 @@ void KD_TREE<PointType>::DeleteByPoint(KD_TREE_NODE** root, PointType point,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::AddByPoint(KD_TREE_NODE** root, PointType point,
+template <typename PointT>
+void KD_TREE<PointT>::AddByPoint(KD_TREE_NODE** root, PointT point,
                                     bool allow_rebuild, int father_axis) {
   if (*root == nullptr) {
     *root = new KD_TREE_NODE;
@@ -423,9 +429,9 @@ void KD_TREE<PointType>::AddByPoint(KD_TREE_NODE** root, PointType point,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Search(KD_TREE_NODE* root, int k_nearest,
-                                PointType point, MANUAL_HEAP& q,
+template <typename PointT>
+void KD_TREE<PointT>::Search(KD_TREE_NODE* root, int k_nearest,
+                                PointT point, MANUAL_HEAP& q,
                                 double max_dist) {
   if (root == nullptr || root->tree_deleted) return;
   double cur_dist = CalcBoxDist(root, point);
@@ -446,7 +452,7 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE* root, int k_nearest,
     float dist = CalcDist(point, root->point);
     if (dist <= max_dist_sqr && (q.size() < k_nearest || dist < q.top().dist)) {
       if (q.size() >= k_nearest) q.pop();
-      PointType_CMP current_point{root->point, dist};
+      PointT_CMP current_point{root->point, dist};
       q.push(current_point);
     }
   }
@@ -477,8 +483,8 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE* root, int k_nearest,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::SearchByRange(KD_TREE_NODE* root,
+template <typename PointT>
+void KD_TREE<PointT>::SearchByRange(KD_TREE_NODE* root,
                                        BoxPointType boxpoint,
                                        PointVector& Storage) {
   if (root == nullptr) return;
@@ -514,12 +520,12 @@ void KD_TREE<PointType>::SearchByRange(KD_TREE_NODE* root,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::SearchByRadius(KD_TREE_NODE* root, PointType point,
+template <typename PointT>
+void KD_TREE<PointT>::SearchByRadius(KD_TREE_NODE* root, PointT point,
                                         float radius, PointVector& Storage) {
   if (root == nullptr) return;
   PushDown(root);
-  PointType range_center;
+  PointT range_center;
   range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
   range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
   range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
@@ -537,8 +543,8 @@ void KD_TREE<PointType>::SearchByRadius(KD_TREE_NODE* root, PointType point,
   return;
 }
 
-template <typename PointType>
-bool KD_TREE<PointType>::CriterionCheck(KD_TREE_NODE* root) {
+template <typename PointT>
+bool KD_TREE<PointT>::CriterionCheck(KD_TREE_NODE* root) {
   if (root->tree_size <= Minimal_Unbalanced_Tree_Size) {
     return false;
   }
@@ -558,8 +564,8 @@ bool KD_TREE<PointType>::CriterionCheck(KD_TREE_NODE* root) {
   return false;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::PushDown(KD_TREE_NODE* root) {
+template <typename PointT>
+void KD_TREE<PointT>::PushDown(KD_TREE_NODE* root) {
   if (root == nullptr) return;
   if (root->need_push_down_to_left && root->left_son_ptr != nullptr) {
     root->left_son_ptr->tree_downsample_deleted |=
@@ -605,8 +611,8 @@ void KD_TREE<PointType>::PushDown(KD_TREE_NODE* root) {
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
+template <typename PointT>
+void KD_TREE<PointT>::Update(KD_TREE_NODE* root) {
   KD_TREE_NODE* left_son_ptr = root->left_son_ptr;
   KD_TREE_NODE* right_son_ptr = root->right_son_ptr;
   float tmp_range_x[2] = {INFINITY, -INFINITY};
@@ -800,8 +806,8 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE* root) {
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Flatten(KD_TREE_NODE* root, PointVector& Storage,
+template <typename PointT>
+void KD_TREE<PointT>::Flatten(KD_TREE_NODE* root, PointVector& Storage,
                                  DeletePointStorageSet storage_type) {
   if (root == nullptr) return;
   PushDown(root);
@@ -824,8 +830,8 @@ void KD_TREE<PointType>::Flatten(KD_TREE_NODE* root, PointVector& Storage,
   return;
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::DeleteTreeNodes(KD_TREE_NODE** root) {
+template <typename PointT>
+void KD_TREE<PointT>::DeleteTreeNodes(KD_TREE_NODE** root) {
   if (*root == nullptr) return;
   PushDown(*root);
   DeleteTreeNodes(&(*root)->left_son_ptr);
@@ -838,22 +844,22 @@ void KD_TREE<PointType>::DeleteTreeNodes(KD_TREE_NODE** root) {
   return;
 }
 
-template <typename PointType>
-bool KD_TREE<PointType>::SamePoint(PointType a, PointType b) {
+template <typename PointT>
+bool KD_TREE<PointT>::SamePoint(PointT a, PointT b) {
   return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS &&
           fabs(a.z - b.z) < EPSS);
 }
 
-template <typename PointType>
-float KD_TREE<PointType>::CalcDist(PointType a, PointType b) {
+template <typename PointT>
+float KD_TREE<PointT>::CalcDist(PointT a, PointT b) {
   float dist = 0.0f;
   dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) +
          (a.z - b.z) * (a.z - b.z);
   return dist;
 }
 
-template <typename PointType>
-float KD_TREE<PointType>::CalcBoxDist(KD_TREE_NODE* node, PointType point) {
+template <typename PointT>
+float KD_TREE<PointT>::CalcBoxDist(KD_TREE_NODE* node, PointT point) {
   if (node == nullptr) return INFINITY;
   float min_dist = 0.0;
   if (point.x < node->node_range_x[0])
@@ -877,16 +883,16 @@ float KD_TREE<PointType>::CalcBoxDist(KD_TREE_NODE* node, PointType point) {
   return min_dist;
 }
 
-template <typename PointType>
-bool KD_TREE<PointType>::PointCmpX(PointType a, PointType b) {
+template <typename PointT>
+bool KD_TREE<PointT>::PointCmpX(PointT a, PointT b) {
   return a.x < b.x;
 }
-template <typename PointType>
-bool KD_TREE<PointType>::PointCmpY(PointType a, PointType b) {
+template <typename PointT>
+bool KD_TREE<PointT>::PointCmpY(PointT a, PointT b) {
   return a.y < b.y;
 }
-template <typename PointType>
-bool KD_TREE<PointType>::PointCmpZ(PointType a, PointType b) {
+template <typename PointT>
+bool KD_TREE<PointT>::PointCmpZ(PointT a, PointT b) {
   return a.z < b.z;
 }
 

@@ -44,14 +44,14 @@ class MANUAL_Q {
   int size();
 };
 
-template <typename PointType>
+template <typename PointT>
 class KD_TREE {
  public:
   using PointVector =
-      std::vector<PointType, Eigen::aligned_allocator<PointType>>;
-  using Ptr = std::shared_ptr<KD_TREE<PointType>>;
+      std::vector<PointT, Eigen::aligned_allocator<PointT>>;
+  using Ptr = std::shared_ptr<KD_TREE<PointT>>;
   struct KD_TREE_NODE {
-    PointType point;
+    PointT point;
     uint8_t division_axis;
     int tree_size = 1;
     int invalid_point_num = 0;
@@ -74,14 +74,14 @@ class KD_TREE {
     float alpha_bal;
   };
 
-  struct PointType_CMP {
-    PointType point;
+  struct PointT_CMP {
+    PointT point;
     float dist = 0.0;
-    PointType_CMP(PointType p = PointType(), float d = INFINITY) {
+    PointT_CMP(PointT p = PointT(), float d = INFINITY) {
       this->point = p;
       this->dist = d;
     };
-    bool operator<(const PointType_CMP& a) const {
+    bool operator<(const PointT_CMP& a) const {
       if (fabs(dist - a.dist) < 1e-10)
         return point.x < a.point.x;
       else
@@ -93,7 +93,7 @@ class KD_TREE {
    public:
     MANUAL_HEAP(int max_capacity = 100) {
       cap = max_capacity;
-      heap = new PointType_CMP[max_capacity];
+      heap = new PointT_CMP[max_capacity];
       heap_size = 0;
     }
 
@@ -107,9 +107,9 @@ class KD_TREE {
       return;
     }
 
-    PointType_CMP top() { return heap[0]; }
+    PointT_CMP top() { return heap[0]; }
 
-    void push(PointType_CMP point) {
+    void push(PointT_CMP point) {
       if (heap_size >= cap) return;
       heap[heap_size] = point;
       FloatUp(heap_size);
@@ -124,10 +124,10 @@ class KD_TREE {
    private:
     int heap_size = 0;
     int cap = 0;
-    PointType_CMP* heap;
+    PointT_CMP* heap;
     void MoveDown(int heap_index) {
       int l = heap_index * 2 + 1;
-      PointType_CMP tmp = heap[heap_index];
+      PointT_CMP tmp = heap[heap_index];
       while (l < heap_size) {
         if (l + 1 < heap_size && heap[l] < heap[l + 1]) l++;
         if (tmp < heap[l]) {
@@ -143,7 +143,7 @@ class KD_TREE {
 
     void FloatUp(int heap_index) {
       int ancestor = (heap_index - 1) / 2;
-      PointType_CMP tmp = heap[heap_index];
+      PointT_CMP tmp = heap[heap_index];
       while (heap_index > 0) {
         if (heap[ancestor] < tmp) {
           heap[heap_index] = heap[ancestor];
@@ -170,26 +170,26 @@ class KD_TREE {
   void Rebuild(KD_TREE_NODE** root);
   int DeleteByRange(KD_TREE_NODE** root, BoxPointType boxpoint,
                     bool allow_rebuild, bool is_downsample);
-  void DeleteByPoint(KD_TREE_NODE** root, PointType point, bool allow_rebuild);
-  void AddByPoint(KD_TREE_NODE** root, PointType point, bool allow_rebuild,
+  void DeleteByPoint(KD_TREE_NODE** root, PointT point, bool allow_rebuild);
+  void AddByPoint(KD_TREE_NODE** root, PointT point, bool allow_rebuild,
                   int father_axis);
-  void Search(KD_TREE_NODE* root, int k_nearest, PointType point,
+  void Search(KD_TREE_NODE* root, int k_nearest, PointT point,
               MANUAL_HEAP& q,
-              double max_dist);  // priority_queue<PointType_CMP>
+              double max_dist);  // priority_queue<PointT_CMP>
   void SearchByRange(KD_TREE_NODE* root, BoxPointType boxpoint,
                      PointVector& Storage);
-  void SearchByRadius(KD_TREE_NODE* root, PointType point, float radius,
+  void SearchByRadius(KD_TREE_NODE* root, PointT point, float radius,
                       PointVector& Storage);
   bool CriterionCheck(KD_TREE_NODE* root);
   void PushDown(KD_TREE_NODE* root);
   void Update(KD_TREE_NODE* root);
   void DeleteTreeNodes(KD_TREE_NODE** root);
-  bool SamePoint(PointType a, PointType b);
-  float CalcDist(PointType a, PointType b);
-  float CalcBoxDist(KD_TREE_NODE* node, PointType point);
-  static bool PointCmpX(PointType a, PointType b);
-  static bool PointCmpY(PointType a, PointType b);
-  static bool PointCmpZ(PointType a, PointType b);
+  bool SamePoint(PointT a, PointT b);
+  float CalcDist(PointT a, PointT b);
+  float CalcBoxDist(KD_TREE_NODE* node, PointT point);
+  static bool PointCmpX(PointT a, PointT b);
+  static bool PointCmpY(PointT a, PointT b);
+  static bool PointCmpZ(PointT a, PointT b);
 
  public:
   KD_TREE(float delete_param = 0.5, float balance_param = 0.6,
@@ -204,17 +204,18 @@ class KD_TREE {
   int ValidNum();
   void RootAlpha(float& alpha_bal, float& alpha_del);
   void Build(PointVector point_cloud);
-  void NearestSearch(PointType point, int k_nearest,
+  void NearestSearch(PointT point, int k_nearest,
                      PointVector& Nearest_Points,
                      std::vector<float>& Point_Distance,
                      double max_dist = INFINITY);
   void BoxSearch(const BoxPointType& Box_of_Point, PointVector& Storage);
-  void RadiusSearch(PointType point, const float radius, PointVector& Storage);
+  void RadiusSearch(PointT point, const float radius, PointVector& Storage);
   int AddPoints(PointVector& PointToAdd, bool downsample_on);
   void DeletePoints(PointVector& PointToDel);
   void Flatten(KD_TREE_NODE* root, PointVector& Storage,
                DeletePointStorageSet storage_type);
   void AcquireRemovedPoints(PointVector& removed_points);
+  void AcquireTreePoints(PointVector& tree_points);
   void Clear();
   BoxPointType TreeRange();
   PointVector pcl_storage_;
